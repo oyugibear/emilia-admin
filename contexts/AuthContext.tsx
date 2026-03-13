@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { sessionManager as authStorage, type SessionUser as User } from '@/lib/core/session-manager'
+import { useRouter } from 'next/navigation'
 
 interface AuthContextType {
   user: User | null
@@ -51,38 +52,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     initializeAuth()
-  }, [])
-
-  // Listen for storage changes (for multi-tab sync)
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'auth_token' || e.key === 'user_data') {
-        try {
-          const storedToken = authStorage.getToken()
-          const storedUser = authStorage.getUser()
-
-          if (!storedToken || !storedUser) {
-            // Auth was cleared in another tab
-            setToken(null)
-            setUser(null)
-            setError(null)
-          } else {
-            // Auth was updated in another tab
-            setToken(storedToken)
-            setUser(storedUser)
-            setError(null)
-          }
-        } catch (error) {
-          console.error('Error handling storage change:', error)
-          setError('Authentication sync failed')
-        }
-      }
-    }
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('storage', handleStorageChange)
-      return () => window.removeEventListener('storage', handleStorageChange)
-    }
   }, [])
 
   const login = (userData: User, userToken: string) => {
@@ -298,16 +267,17 @@ export function withAuth<T extends Record<string, any>>(
   }
 ) {
   return function AuthenticatedComponent(props: T) {
+    const router = useRouter()
     const { isAuthenticated, isLoading, user } = useAuth()
     const { redirectTo = '/auth', requiredRole, loadingComponent: LoadingComponent } = options || {}
 
     useEffect(() => {
       if (!isLoading && !isAuthenticated) {
-        window.location.href = redirectTo
+        router.push(redirectTo)
       } else if (!isLoading && requiredRole && user?.role !== requiredRole) {
-        window.location.href = '/'
+        router.push('/')
       }
-    }, [isAuthenticated, isLoading, user, redirectTo, requiredRole])
+    }, [isAuthenticated, isLoading, user, redirectTo, requiredRole, router])
 
     if (isLoading) {
       if (LoadingComponent) {
