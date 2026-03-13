@@ -5,6 +5,8 @@ import { MdEdit, MdDelete, MdSchedule } from 'react-icons/md'
 import { FaBed, FaUser, FaClock, FaCalendarAlt } from 'react-icons/fa'
 
 export interface HousekeepingTask {
+  apiId?: string
+  roomId?: string
   id: string
   roomNumber: string
   roomType: string
@@ -134,7 +136,7 @@ export default function TaskCard({ task, onEdit, onDelete, onStatusUpdate }: Tas
         <div className="flex gap-2">
           {onEdit && (
             <button 
-              onClick={() => onEdit(task.id)}
+              onClick={() => onEdit(task.apiId || task.id)}
               className="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50 transition-colors"
               title="Edit Task"
             >
@@ -143,7 +145,7 @@ export default function TaskCard({ task, onEdit, onDelete, onStatusUpdate }: Tas
           )}
           {onDelete && (
             <button 
-              onClick={() => onDelete(task.id)}
+              onClick={() => onDelete(task.apiId || task.id)}
               className="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 transition-colors"
               title="Delete Task"
             >

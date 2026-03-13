@@ -21,6 +21,8 @@ import {
   FaTimes 
 } from 'react-icons/fa'
 import { IoMdCalendar } from 'react-icons/io'
+import { FaUsersGear } from 'react-icons/fa6'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface MenuItem {
   id: string
@@ -32,8 +34,16 @@ interface MenuItem {
 
 export default function SideMenu() {
   const pathname = usePathname()
+  const { logout } = useAuth()
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  const isAuthRoute = pathname.toLowerCase().startsWith('/auth')
+
+  if (isAuthRoute) {
+    return null
+  }
 
   const menuItems: MenuItem[] = [
     {
@@ -81,23 +91,23 @@ export default function SideMenu() {
       href: '/guests'
     },
     {
-      id: 'analytics',
-      label: 'Analytics',
-      icon: FaChartLine,
-      href: '/analytics'
+      id: 'staff',
+      label: 'Staff',
+      icon: FaUsersGear,
+      href: '/staff'
     },
-    {
-      id: 'reports',
-      label: 'Reports',
-      icon: MdReport,
-      href: '/reports'
-    },
-    {
-      id: 'settings',
-      label: 'Settings',
-      icon: MdSettings,
-      href: '/settings'
-    }
+    // {
+    //   id: 'analytics',
+    //   label: 'Analytics',
+    //   icon: FaChartLine,
+    //   href: '/analytics'
+    // },
+    // {
+    //   id: 'settings',
+    //   label: 'Settings',
+    //   icon: MdSettings,
+    //   href: '/settings'
+    // }
   ]
 
   const isActive = (href: string) => {
@@ -111,12 +121,24 @@ export default function SideMenu() {
     setIsCollapsed(!isCollapsed)
   }
 
+  const handleLogout = async () => {
+    if (isLoggingOut) return
+
+    setIsLoggingOut(true)
+    try {
+      logout()
+    } finally {
+      setIsLoggingOut(false)
+      setIsMobileOpen(false)
+    }
+  }
+
   return (
     <>
       {/* Mobile overlay when mobile sidebar is open */}
       {isMobileOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          className="fixed inset-0 z-30 bg-slate-950/35 backdrop-blur-sm lg:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
@@ -124,31 +146,31 @@ export default function SideMenu() {
       {/* Mobile menu button - shows when sidebar is hidden on mobile */}
       <button
         onClick={() => setIsMobileOpen(true)}
-        className="fixed top-4 left-4 z-50 lg:hidden bg-[#1D4E56] text-white p-2 rounded-lg "
+        className="fixed left-4 top-4 z-50 rounded-xl bg-[#1D4E56] p-2.5 text-white shadow-lg shadow-[#1D4E56]/20 lg:hidden"
       >
         <FaBars />
       </button>
       
-      <div className={`bg-white transition-all duration-300 h-full ${
+      <div className={`h-full border-r border-slate-200/80 bg-white/95 backdrop-blur transition-all duration-300 ${
         // On large screens: show/hide based on isCollapsed
         // On mobile: show only when isMobileOpen is true
         isCollapsed 
-          ? 'hidden lg:block lg:w-16' // Collapsed state on large screens
-          : 'hidden lg:block lg:w-64' // Full width on large screens
+          ? 'hidden lg:block lg:w-[72px]' // Collapsed state on large screens
+          : 'hidden lg:block lg:w-56' // Full width on large screens
       } ${
         // Mobile states
-        isMobileOpen ? 'fixed left-0 top-0 w-64 z-40 lg:relative' : ''
+        isMobileOpen ? 'fixed left-0 top-0 z-40 w-56 shadow-2xl shadow-slate-900/10 lg:relative' : ''
       }`}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+      <div className="flex items-center justify-between border-b border-slate-200/80 px-3 py-3">
         {!isCollapsed && (
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#1D4E56] rounded-lg flex items-center justify-center">
-              <MdHome className="text-white text-lg" />
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-linear-to-br from-[#1D4E56] to-[#2f7681] shadow-sm shadow-[#1D4E56]/20">
+              <MdHome className="text-base text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Emilia</h2>
-              <p className="text-xs text-gray-500">Admin Panel</p>
+              <h2 className="text-sm font-semibold tracking-tight text-slate-900">Emilia</h2>
+              <p className="text-[11px] text-slate-500">Admin Panel</p>
             </div>
           </div>
         )}
@@ -156,7 +178,7 @@ export default function SideMenu() {
         {/* Desktop collapse button */}
         <button
           onClick={toggleCollapse}
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 hidden lg:block"
+          className="hidden rounded-xl p-2 text-slate-500 transition-colors duration-200 hover:bg-slate-100 hover:text-slate-700 lg:block"
         >
           {isCollapsed ? (
             <FaBars className="text-gray-600 text-sm" />
@@ -168,14 +190,14 @@ export default function SideMenu() {
         {/* Mobile close button */}
         <button
           onClick={() => setIsMobileOpen(false)}
-          className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 lg:hidden"
+          className="rounded-xl p-2 text-slate-500 transition-colors duration-200 hover:bg-slate-100 hover:text-slate-700 lg:hidden"
         >
           <FaTimes className="text-gray-600 text-sm" />
         </button>
       </div>
 
       {/* Navigation Menu */}
-      <nav className="p-4 space-y-2">
+      <nav className="space-y-1 px-3 py-3">
         {menuItems.map((item) => {
           const Icon = item.icon
           const active = isActive(item.href)
@@ -185,22 +207,22 @@ export default function SideMenu() {
               key={item.id}
               href={item.href}
               onClick={() => setIsMobileOpen(false)} // Close mobile menu when item is clicked
-              className={`flex items-center gap-3 px-4 py-3  rounded-lg transition-all duration-200 group relative ${
+              className={`group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-all duration-200 ${
                 active
-                  ? 'bg-[#1D4E56] text-white shadow-md'
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-[#1D4E56]'
+                  ? 'bg-[#1D4E56] text-white shadow-sm shadow-[#1D4E56]/20'
+                  : 'text-slate-600 hover:bg-slate-100/80 hover:text-[#1D4E56]'
               }`}
             >
-              <Icon className={`text-lg shrink-0 ${
-                active ? 'text-white' : 'text-gray-500 group-hover:text-[#1D4E56]'
+              <Icon className={`shrink-0 text-[18px] ${
+                active ? 'text-white' : 'text-slate-400 group-hover:text-[#1D4E56]'
               }`} />
               
               {/* Show labels when not collapsed OR on mobile when open */}
               {(!isCollapsed || isMobileOpen) && (
                 <>
-                  <span className="font-medium truncate">{item.label}</span>
+                  <span className="truncate text-sm font-medium">{item.label}</span>
                   {item.badge && (
-                    <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full min-w-5 text-center">
+                    <span className="ml-auto rounded-full bg-rose-500/10 px-2 py-0.5 text-[11px] font-semibold text-rose-600">
                       {item.badge}
                     </span>
                   )}
@@ -209,10 +231,10 @@ export default function SideMenu() {
 
               {/* Tooltip for collapsed state on desktop */}
               {isCollapsed && !isMobileOpen && (
-                <div className="absolute left-16 bg-gray-900 text-white text-xs px-2 py-1 rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                <div className="invisible absolute left-16 z-50 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs text-white opacity-0 shadow-lg transition-all duration-200 group-hover:visible group-hover:opacity-100">
                   {item.label}
                   {item.badge && (
-                    <span className="ml-2 bg-red-500 px-1 rounded">
+                    <span className="ml-2 rounded bg-rose-500 px-1.5 py-0.5 text-[10px]">
                       {item.badge}
                     </span>
                   )}
@@ -224,22 +246,26 @@ export default function SideMenu() {
       </nav>
 
       {/* Footer */}
-      <div className=" p-4 border-t border-gray-200">
+      <div className="mt-auto border-t border-slate-200/80 px-3 py-3">
         <div className={`${isCollapsed && !isMobileOpen ? 'flex justify-center' : ''}`}>
-          <button className={`flex items-center gap-3 px-3 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 transition-all duration-200 ${
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-slate-600 transition-all duration-200 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-60 ${
             isCollapsed && !isMobileOpen ? '' : 'w-full'
-          }`}>
+          }`}
+          >
             <MdLogout className="text-lg shrink-0" />
             {(!isCollapsed || isMobileOpen) && (
-              <span className="font-medium">Logout</span>
+              <span className="text-sm font-medium">{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
             )}
           </button>
         </div>
 
         {(!isCollapsed || isMobileOpen) && (
-          <div className="mt-3 px-3 py-2 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-600 font-medium">Admin User</p>
-            <p className="text-xs text-gray-500">admin@emilia.co.ke</p>
+          <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+            <p className="text-xs font-semibold text-slate-700">Admin User</p>
+            <p className="text-[11px] text-slate-500">admin@emilia.co.ke</p>
           </div>
         )}
       </div>
