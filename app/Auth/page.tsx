@@ -8,6 +8,8 @@ import Input from '@/components/UI/Input'
 import PasswordInput from '@/components/UI/PasswordInput'
 import Button from '@/components/UI/Button'
 import Checkbox from '@/components/UI/Checkbox'
+import { authApi } from '@/lib/core/auth-api'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function AdminLoginPage() {
   const [formData, setFormData] = useState({
@@ -18,7 +20,14 @@ export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const { login, handleLoginFailure, isAuthenticated } = useAuth()
   const router = useRouter()
+
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/')
+    }
+  }, [isAuthenticated, router])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -43,25 +52,23 @@ export default function AdminLoginPage() {
       return
     }
 
-    // Simulate API call - replace with actual authentication logic
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500)) // Simulate network delay
-      
-      // Mock authentication - in real app, validate against backend
-      if (formData.username === 'admin' && formData.password === 'emilia2025') {
-        // Store auth token or session
-        localStorage.setItem('emilia_admin_token', 'mock_token_123')
-        setSuccess(true)
-        
-        // Redirect after showing success message
-        setTimeout(() => {
-          router.push('/') // Redirect to admin dashboard
-        }, 1000)
-      } else {
-        setError('Invalid username or password')
+      const response = await authApi.login(formData.username.trim(), formData.password, rememberMe)
+
+      if (!response?.user || !response?.token) {
+        throw new Error('Invalid login response')
       }
+
+      login(response.user, response.token)
+      setSuccess(true)
+
+      setTimeout(() => {
+        router.replace('/')
+      }, 500)
     } catch (err) {
-      setError('Login failed. Please try again.')
+      const message = err instanceof Error ? err.message : 'Login failed. Please try again.'
+      setError(message)
+      handleLoginFailure(message)
     } finally {
       setIsLoading(false)
     }
@@ -72,11 +79,7 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-white to-gray-50 flex items-center justify-center p-4">
-      {/* Background decorative elements */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-[#1D4E56] opacity-5 rounded-full blur-3xl -translate-x-48 -translate-y-48"></div>
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#1D4E56] opacity-5 rounded-full blur-3xl translate-x-48 translate-y-48"></div>
-      
+    <div className="min-h-screen bg-linear-to-br from-gray-100 via-white to-gray-50 flex items-center justify-center p-4">
       <div className="relative w-full max-w-md">
         {/* Login Card */}
         <div className="bg-white rounded-2xl shadow-2xl p-8 md:p-10 border border-gray-100">
@@ -157,6 +160,7 @@ export default function AdminLoginPage() {
               />
               <button
                 type="button"
+                onClick={() => router.push('/auth/ForgotPassword')}
                 className="text-[#1D4E56] hover:text-[#2a6670] font-medium transition-colors duration-200"
               >
                 Forgot password?
@@ -174,15 +178,6 @@ export default function AdminLoginPage() {
               Sign In to Dashboard
             </Button>
           </form>
-
-          {/* Demo Credentials */}
-          <div className="mt-8 p-4 bg-gray-50 rounded-lg border">
-            <h4 className="text-sm font-semibold text-gray-700 mb-2">Demo Credentials:</h4>
-            <div className="text-xs text-gray-600 space-y-1">
-              <p><span className="font-medium">Username:</span> admin</p>
-              <p><span className="font-medium">Password:</span> emilia2025</p>
-            </div>
-          </div>
 
           {/* Footer */}
           <div className="mt-8 text-center">

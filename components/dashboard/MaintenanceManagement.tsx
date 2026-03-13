@@ -1,16 +1,12 @@
 'use client'
 
-import React from 'react'
-
-// Sample data - in real app this would come from API/props
-const maintenanceRequests = [
-  { id: 'MR001', room: 'S002', issue: 'Bathroom sink leak', priority: 'high', status: 'in-progress', assignedTo: 'James Tech', date: '2025-11-08' },
-  { id: 'MR002', room: '2B01', issue: 'AC not cooling properly', priority: 'medium', status: 'pending', assignedTo: null, date: '2025-11-09' },
-  { id: 'MR003', room: '1B03', issue: 'Light bulb replacement', priority: 'low', status: 'completed', assignedTo: 'Mike Fix', date: '2025-11-07' },
-  { id: 'MR004', room: 'S005', issue: 'Door lock malfunction', priority: 'high', status: 'pending', assignedTo: null, date: '2025-11-10' },
-  { id: 'MR005', room: '1B05', issue: 'WiFi connectivity issues', priority: 'medium', status: 'in-progress', assignedTo: 'Tech Support', date: '2025-11-09' },
-  { id: 'MR006', room: '2B03', issue: 'Heating system not working', priority: 'high', status: 'pending', assignedTo: null, date: '2025-11-10' },
-]
+import React, { useEffect, useState } from 'react'
+import { Table } from 'antd'
+import type { TableProps } from 'antd'
+import { maintenanceApi } from '@/lib/core/maintenance-api'
+import { roomApi } from '@/lib/core/room-api'
+import type { MaintenanceModalType, MaintenanceRequest, Room } from '@/types'
+import MaintenanceModal from '@/components/constants/modals/MaintenanceModal'
 
 const getPriorityColor = (priority: string) => {
   switch (priority) {
@@ -31,14 +27,155 @@ const getStatusColor = (status: string) => {
 }
 
 export default function MaintenanceManagement() {
+  const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>([])
+  const [rooms, setRooms] = useState<Room[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [modalType, setModalType] = useState<MaintenanceModalType>('add')
+  const [selectedMaintenance, setSelectedMaintenance] = useState<MaintenanceRequest | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+
+    const fetchData = async () => {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const [maintenanceData, roomsData] = await Promise.all([
+          maintenanceApi.getMaintenances(),
+          roomApi.getRooms()
+        ])
+
+        if (!isMounted) return
+        setMaintenanceRequests(maintenanceData)
+        setRooms(roomsData)
+      } catch (err) {
+        if (!isMounted) return
+        setError(err instanceof Error ? err.message : 'Failed to load maintenance requests')
+      } finally {
+        if (isMounted) setIsLoading(false)
+      }
+    }
+
+    fetchData()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const openAddModal = () => {
+    setModalType('add')
+    setSelectedMaintenance(null)
+    setIsModalOpen(true)
+  }
+
+  const openEditModal = (item: MaintenanceRequest) => {
+    setModalType('edit')
+    setSelectedMaintenance(item)
+    setIsModalOpen(true)
+  }
+
+  const handleSaveMaintenance = async (item: MaintenanceRequest) => {
+    const selectedRoom = rooms.find((room) => room.id === item.room)
+    const payload: MaintenanceRequest = {
+      ...item,
+      roomId: selectedRoom?.apiId
+    }
+
+    if (modalType === 'add') {
+      const created = await maintenanceApi.createMaintenance(payload)
+      setMaintenanceRequests((prev) => [created, ...prev])
+      return
+    }
+
+    const updated = await maintenanceApi.updateMaintenance(payload)
+    setMaintenanceRequests((prev) => prev.map((row) => (row.apiId === updated.apiId ? updated : row)))
+  }
+
+  const maintenanceColumns: TableProps<MaintenanceRequest>['columns'] = [
+    // {
+    //   title: 'ID',
+    //   dataIndex: 'id',
+    //   key: 'id',
+    //   render: (value: string) => <span className="text-sm font-medium text-gray-900">{value}</span>
+    // },
+    {
+      title: 'Room',
+      dataIndex: 'room',
+      key: 'room',
+      render: (value: string) => <span className="text-sm text-gray-500">{value}</span>
+    },
+    {
+      title: 'Issue',
+      dataIndex: 'issue',
+      key: 'issue',
+      render: (value: string) => <span className="text-sm text-gray-500">{value}</span>
+    },
+    {
+      title: 'Priority',
+      dataIndex: 'priority',
+      key: 'priority',
+      render: (value: string) => (
+        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(value)}`}>
+          {value}
+        </span>
+      )
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (value: string) => (
+        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(value)}`}>
+          {value.replace('-', ' ')}
+        </span>
+      )
+    },
+    {
+      title: 'Assigned To',
+      dataIndex: 'assignedTo',
+      key: 'assignedTo',
+      render: (value: string | null) => <span className="text-sm text-gray-500">{value || 'Unassigned'}</span>
+    },
+    {
+      title: 'Date',
+      dataIndex: 'date',
+      key: 'date',
+      render: (value: string) => <span className="text-sm text-gray-500">{value}</span>
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, request) => (
+        <div className="whitespace-nowrap text-sm font-medium">
+          <button
+            onClick={() => openEditModal(request)}
+            className="text-[#1D4E56] hover:text-[#2a6670] mr-3"
+          >
+            Edit
+          </button>
+          <button className="text-red-600 hover:text-red-900">Delete</button>
+        </div>
+      )
+    }
+  ]
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Maintenance Management</h2>
           <p className="text-gray-600 mt-1">Manage and track all maintenance requests</p>
+          {isLoading && <p className="text-sm text-gray-500 mt-1">Loading maintenance requests...</p>}
+          {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
         </div>
-        <button className="bg-[#1D4E56] text-white px-4 py-2 rounded-md hover:bg-[#2a6670] transition-colors">
+        <button
+          onClick={openAddModal}
+          className="bg-[#1D4E56] text-white px-4 py-2 rounded-md hover:bg-[#2a6670] transition-colors"
+        >
           New Request
         </button>
       </div>
@@ -94,48 +231,23 @@ export default function MaintenanceManagement() {
           </div>
         </div>
         
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Room</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Issue</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assigned To</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {maintenanceRequests.map((request) => (
-                <tr key={request.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{request.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.room}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{request.issue}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(request.priority)}`}>
-                      {request.priority}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(request.status)}`}>
-                      {request.status.replace('-', ' ')}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.assignedTo || 'Unassigned'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.date}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button className="text-[#1D4E56] hover:text-[#2a6670] mr-3">Edit</button>
-                    <button className="text-red-600 hover:text-red-900">Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table<MaintenanceRequest>
+          rowKey="apiId"
+          columns={maintenanceColumns}
+          dataSource={maintenanceRequests}
+          pagination={false}
+          scroll={{ x: 900 }}
+        />
       </div>
+
+      <MaintenanceModal
+        isOpen={isModalOpen}
+        type={modalType}
+        maintenance={selectedMaintenance}
+        roomNumbers={rooms.map((room) => room.id)}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveMaintenance}
+      />
     </div>
   )
 }
