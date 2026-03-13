@@ -25,6 +25,7 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
+  const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -161,11 +162,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setToken(null)
       setUser(null)
       setError(null) // Clear errors on logout
-      
-      // Redirect to home page after logout
-      if (typeof window !== 'undefined') {
-        window.location.href = '/'
-      }
+
+      router.replace('/auth')
     } catch (error) {
       console.error('Error during logout:', error)
       setError('Logout failed')
@@ -231,7 +229,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const value: AuthContextType = {
     user,
     token,
-    isAuthenticated: !!(token && user && authStorage.isAuthenticated()),
+    isAuthenticated: !!user,
     isLoading,
     error,
     login,
@@ -272,12 +270,17 @@ export function withAuth<T extends Record<string, any>>(
     const { redirectTo = '/auth', requiredRole, loadingComponent: LoadingComponent } = options || {}
 
     useEffect(() => {
-      if (!isLoading && !isAuthenticated) {
-        router.push(redirectTo)
-      } else if (!isLoading && requiredRole && user?.role !== requiredRole) {
-        router.push('/')
+      if (isLoading) return
+
+      if (!isAuthenticated) {
+        router.replace(redirectTo)
+        return
       }
-    }, [isAuthenticated, isLoading, user, redirectTo, requiredRole, router])
+
+      if (requiredRole && user?.role !== requiredRole) {
+        router.replace('/')
+      }
+    }, [isLoading, isAuthenticated, user])
 
     if (isLoading) {
       if (LoadingComponent) {
