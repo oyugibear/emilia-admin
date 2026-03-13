@@ -8,7 +8,7 @@ export default function Home() {
 
   useEffect(() => {
     // Redirect to dashboard page immediately
-    router.replace('/dashboard')
+    router.replace('/auth')
   }, [router])
 
   // Show loading state while redirecting
