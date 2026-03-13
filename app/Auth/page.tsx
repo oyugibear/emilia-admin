@@ -62,9 +62,7 @@ export default function AdminLoginPage() {
       login(response.user, response.token)
       setSuccess(true)
 
-      setTimeout(() => {
-        router.replace('/')
-      }, 500)
+      router.replace('/dashboard')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed. Please try again.'
       setError(message)
