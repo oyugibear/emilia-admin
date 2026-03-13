@@ -25,7 +25,7 @@ export default function AdminLoginPage() {
 
   React.useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/')
+      router.replace('/dashboard')
     }
   }, [isAuthenticated, router])
 
