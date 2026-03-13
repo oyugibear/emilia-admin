@@ -17,8 +17,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={montserrat.className}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={montserrat.className} suppressHydrationWarning>
         <Providers>
           <div className="flex min-h-screen">
             {/* Sidebar - shows on large screens, hidden on mobile */}
