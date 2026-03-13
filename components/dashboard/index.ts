@@ -1,0 +1,5 @@
+export { default as DashboardOverview } from './DashboardOverview'
+export { default as MaintenanceManagement } from './MaintenanceManagement'
+export { default as InventoryManagement } from './InventoryManagement'
+export { default as RoomsManagement } from './RoomsManagement'
+export { default as ReportsAnalytics } from './ReportsAnalytics'
