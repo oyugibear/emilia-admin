@@ -79,7 +79,7 @@ export default function InventoryModal({ isOpen, type, item, onClose, onSave }: 
       title={type === 'add' ? 'Add Inventory Item' : 'Edit Inventory Item'}
       onCancel={onClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       centered
       width={800}
     >

@@ -140,7 +140,7 @@ export default function StaffModal({ isOpen, type, staff, onClose, onSave }: Sta
       title={type === 'add' ? 'Add Staff Member' : type === 'edit' ? 'Edit Staff Member' : 'View Staff Member'}
       onCancel={onClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       centered
       width={920}
     >

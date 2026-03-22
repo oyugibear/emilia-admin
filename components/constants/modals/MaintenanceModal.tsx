@@ -12,7 +12,7 @@ const defaultMaintenance: MaintenanceRequest = {
   priority: 'medium',
   status: 'pending',
   assignedTo: null,
-  date: new Date().toISOString().slice(0, 10),
+  date: '',
   duration: '',
   notes: ''
 }
@@ -31,7 +31,10 @@ export default function MaintenanceModal({ isOpen, type, maintenance, roomNumber
       return
     }
 
-    setForm(defaultMaintenance)
+    setForm({
+      ...defaultMaintenance,
+      date: new Date().toISOString().slice(0, 10)
+    })
   }, [isOpen, type, maintenance])
 
   const handleChange = <K extends keyof MaintenanceRequest>(key: K, value: MaintenanceRequest[K]) => {
@@ -68,7 +71,7 @@ export default function MaintenanceModal({ isOpen, type, maintenance, roomNumber
       title={type === 'add' ? 'Add Maintenance Request' : 'Edit Maintenance Request'}
       onCancel={onClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       centered
       width={800}
     >

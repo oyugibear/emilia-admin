@@ -13,6 +13,5 @@ export default function Home() {
     router.replace(isAuthenticated ? '/dashboard' : '/auth')
   }, [isLoading, isAuthenticated, router])
 
-  // Render nothing — AuthGuard already shows a loading spinner above this
   return null
 }
