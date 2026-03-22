@@ -296,7 +296,7 @@ export default function BookingModal({ isOpen, type, booking, onClose, onSave }:
       title={type === 'add' ? 'New Booking' : 'Edit Booking'}
       onCancel={onClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       centered
       width={960}
     >

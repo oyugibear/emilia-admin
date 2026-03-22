@@ -58,7 +58,7 @@ export default function HousekeepingAssignTaskModal({ isOpen, staff, tasks, onCl
       title="Assign Task"
       onCancel={onClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       centered
       width={760}
     >

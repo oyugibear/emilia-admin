@@ -64,7 +64,7 @@ export default function RoomModal({ isOpen, type, room, onClose, onSave }: RoomM
       title={type === 'add' ? 'Add Room' : 'Edit Room'}
       onCancel={onClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       centered
       width={800}
     >

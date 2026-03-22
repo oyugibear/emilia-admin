@@ -280,7 +280,7 @@ export function withAuth<T extends Record<string, any>>(
       if (requiredRole && user?.role !== requiredRole) {
         router.replace('/')
       }
-    }, [isLoading, isAuthenticated, user])
+    }, [isLoading, isAuthenticated, user, router, redirectTo, requiredRole])
 
     if (isLoading) {
       if (LoadingComponent) {

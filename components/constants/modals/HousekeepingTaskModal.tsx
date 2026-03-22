@@ -108,7 +108,7 @@ export default function HousekeepingTaskModal({ isOpen, rooms, staffOptions, onC
       title="Add Housekeeping Task"
       onCancel={onClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       centered
       width={920}
     >

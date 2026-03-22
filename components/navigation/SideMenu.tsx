@@ -39,7 +39,7 @@ export default function SideMenu() {
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
-  const isAuthRoute = pathname.toLowerCase().startsWith('/auth')
+  const isAuthRoute = (pathname ?? '').toLowerCase().startsWith('/auth')
 
   if (isAuthRoute) {
     return null

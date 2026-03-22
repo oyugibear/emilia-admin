@@ -78,7 +78,7 @@ export default function GuestModal({ isOpen, type, guest, onClose, onSave }: Gue
       title={type === 'add' ? 'Add Guest' : 'Edit Guest'}
       onCancel={onClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       centered
       width={920}
     >
