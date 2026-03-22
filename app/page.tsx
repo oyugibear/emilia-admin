@@ -13,15 +13,10 @@ export default function Home() {
     setMounted(true)
   }, [])
 
-  useEffect(() => {
+  const handleContinue = () => {
     if (!mounted || isLoading) return
-
-    const timer = setTimeout(() => {
-      router.replace(isAuthenticated ? '/dashboard' : '/auth')
-    }, 700)
-
-    return () => clearTimeout(timer)
-  }, [mounted, isLoading, isAuthenticated, router])
+    router.replace(isAuthenticated ? '/dashboard' : '/auth')
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -30,7 +25,16 @@ export default function Home() {
           <span className="text-white text-xl font-bold">E</span>
         </div>
         <h1 className="text-2xl font-semibold text-gray-900 mb-2">Welcome to Emilia</h1>
-        <p className="text-gray-600">Preparing your dashboard...</p>
+        <p className="text-gray-600 mb-5">
+          {isLoading ? 'Checking your session...' : 'Click continue to proceed.'}
+        </p>
+        <button
+          onClick={handleContinue}
+          disabled={!mounted || isLoading}
+          className="bg-[#1D4E56] text-white px-5 py-2.5 rounded-md hover:bg-[#2a6670] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          Continue
+        </button>
       </div>
     </div>
   )
