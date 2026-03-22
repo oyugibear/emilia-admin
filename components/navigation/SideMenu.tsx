@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
@@ -35,11 +35,21 @@ interface MenuItem {
 export default function SideMenu() {
   const pathname = usePathname()
   const { logout } = useAuth()
+  const [mounted, setMounted] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
-  const isAuthRoute = (pathname ?? '').toLowerCase().startsWith('/auth') ||  (pathname ?? '').toLowerCase() === '/'
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return null
+  }
+
+  const normalizedPath = (pathname ?? '').toLowerCase()
+  const isAuthRoute = normalizedPath.startsWith('/auth') || normalizedPath === '/'
 
   if (isAuthRoute) {
     return null
@@ -112,9 +122,9 @@ export default function SideMenu() {
 
   const isActive = (href: string) => {
     if (href === '/dashboard') {
-      return pathname === '/dashboard' || pathname === '/'
+      return normalizedPath === '/dashboard' || normalizedPath === '/'
     }
-    return pathname.startsWith(href)
+    return normalizedPath.startsWith(href)
   }
 
   const toggleCollapse = () => {

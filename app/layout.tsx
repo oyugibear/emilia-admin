@@ -18,8 +18,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={montserrat.className} suppressHydrationWarning>
+    <html lang="en" >
+      <body className={montserrat.className} >
         <Providers>
           <ClientMountGate>
             <div className="flex min-h-screen">
