@@ -23,7 +23,8 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
 
-  const isPublicRoute = pathname?.startsWith('/auth')
+  const normalizedPath = (pathname ?? '').toLowerCase()
+  const isPublicRoute = normalizedPath === '/' || normalizedPath.startsWith('/auth')
 
   useEffect(() => {
     setMounted(true)
