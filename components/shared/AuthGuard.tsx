@@ -37,10 +37,9 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     }
   }, [mounted, isAuthenticated, isLoading, isPublicRoute, router])
 
-  // Before hydration: render the same thing on server and client to avoid mismatch.
-  // Public routes (auth pages) always show their children; protected routes show a spinner.
+  // Before hydration: always render a deterministic fallback.
+  // This avoids pathname-dependent server/client differences that can trigger hydration errors.
   if (!mounted) {
-    if (isPublicRoute) return <>{children}</>
     return <Spinner />
   }
 
