@@ -6,10 +6,9 @@ import StaffCard, { HousekeepingStaff } from './StaffCard'
 interface StaffListProps {
   staff: HousekeepingStaff[]
   onAssignTask?: (staffId: string) => void
-  onUpdateStatus?: (staffId: string, status: HousekeepingStaff['status']) => void
 }
 
-export default function StaffList({ staff, onAssignTask, onUpdateStatus }: StaffListProps) {
+export default function StaffList({ staff, onAssignTask }: StaffListProps) {
   const availableStaff = staff.filter(member => member.status === 'available')
   const busyStaff = staff.filter(member => member.status === 'busy')
   const onBreakStaff = staff.filter(member => member.status === 'break')
@@ -43,7 +42,6 @@ export default function StaffList({ staff, onAssignTask, onUpdateStatus }: Staff
                 key={member.id}
                 staff={member}
                 onAssignTask={onAssignTask}
-                onUpdateStatus={onUpdateStatus}
               />
             ))}
             
@@ -53,7 +51,6 @@ export default function StaffList({ staff, onAssignTask, onUpdateStatus }: Staff
                 key={member.id}
                 staff={member}
                 onAssignTask={onAssignTask}
-                onUpdateStatus={onUpdateStatus}
               />
             ))}
             
@@ -63,7 +60,6 @@ export default function StaffList({ staff, onAssignTask, onUpdateStatus }: Staff
                 key={member.id}
                 staff={member}
                 onAssignTask={onAssignTask}
-                onUpdateStatus={onUpdateStatus}
               />
             ))}
             
@@ -73,7 +69,6 @@ export default function StaffList({ staff, onAssignTask, onUpdateStatus }: Staff
                 key={member.id}
                 staff={member}
                 onAssignTask={onAssignTask}
-                onUpdateStatus={onUpdateStatus}
               />
             ))}
           </div>

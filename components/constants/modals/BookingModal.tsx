@@ -17,11 +17,14 @@ export interface BookingFormData {
     second_name: string
     email: string
     phone_number: string
+    country?: string
   }
   guestName: string
   guestEmail: string
   guestPhone: string
+  guestCountry: string
   room: string
+  roomId?: string
   apartmentType: string
   checkInDate: string
   checkOutDate: string
@@ -29,6 +32,9 @@ export interface BookingFormData {
   childCount: number
   totalAmount: number
   paymentStatus: 'paid' | 'partial' | 'unpaid'
+  paymentMethod: 'PAY_NOW' | 'PAY_ON_ARRIVAL'
+  source: 'ADMIN' | 'WHATSAPP' | 'PHONE' | 'OTHER'
+  currency: 'USD' | 'KES'
   status: BookingStatus
   specialRequest?: string
 }
@@ -48,16 +54,15 @@ interface GuestApiRecord {
   phone_number?: string
 }
 
-interface RoomApiRecord {
-  _id: string
-  room_number?: string
-  type?: string
-}
-
 interface RoomOption {
   id: string
   roomNumber: string
   type: string
+  floor?: number
+  capacity?: number
+  nightlyRate?: number
+  total?: number
+  currency?: string
 }
 
 interface BookingModalProps {
@@ -68,12 +73,13 @@ interface BookingModalProps {
   onSave: (booking: BookingFormData) => Promise<void> | void
 }
 
-const APARTMENT_TYPES = ['Studio', 'One Bedroom', 'Two Bedroom', 'Three Bedroom', 'Penthouse']
+const APARTMENT_TYPES = ['Studio', 'One Bedroom', 'Two Bedroom']
 
 const createDefaultBooking = (): BookingFormData => ({
   guestName: '',
   guestEmail: '',
   guestPhone: '',
+  guestCountry: '',
   room: '',
   apartmentType: 'Studio',
   checkInDate: '',
@@ -82,6 +88,9 @@ const createDefaultBooking = (): BookingFormData => ({
   childCount: 0,
   totalAmount: 0,
   paymentStatus: 'unpaid',
+  paymentMethod: 'PAY_ON_ARRIVAL',
+  source: 'ADMIN',
+  currency: 'USD',
   status: 'pending',
   specialRequest: ''
 })
@@ -135,30 +144,6 @@ export default function BookingModal({ isOpen, type, booking, onClose, onSave }:
     }
   }, [guestOptions.length])
 
-  // Fetch all rooms once when modal opens
-  const fetchRooms = useCallback(async () => {
-    if (roomOptions.length > 0) return
-    setRoomsLoading(true)
-    setRoomsError(null)
-    try {
-      const res = await apiClient.get<{ data: RoomApiRecord[] }>(API_ENDPOINTS.rooms.all)
-      const list: RoomApiRecord[] = Array.isArray(res?.data) ? res.data : []
-      setRoomOptions(
-        list
-          .filter((room) => room.room_number)
-          .map((room) => ({
-            id: room._id,
-            roomNumber: room.room_number || '',
-            type: room.type || 'Studio'
-          }))
-      )
-    } catch {
-      setRoomsError('Could not load rooms')
-    } finally {
-      setRoomsLoading(false)
-    }
-  }, [roomOptions.length])
-
   useEffect(() => {
     if (!isOpen) return
     setSubmitError(null)
@@ -166,7 +151,8 @@ export default function BookingModal({ isOpen, type, booking, onClose, onSave }:
     setDropdownOpen(false)
     if (booking) {
       setForm({ ...booking })
-      // In edit mode default to new (fields already filled)
+      setRoomOptions(booking.roomId ? [{ id: booking.roomId, roomNumber: booking.room, type: booking.apartmentType }] : [])
+      // Existing booking guest details can be edited in place.
       setGuestMode('new')
       setSelectedGuest(
         booking.guestId
@@ -175,6 +161,7 @@ export default function BookingModal({ isOpen, type, booking, onClose, onSave }:
       )
     } else {
       setForm(createDefaultBooking())
+      setRoomOptions([])
       setGuestMode('existing')
       setSelectedGuest(null)
     }
@@ -188,10 +175,54 @@ export default function BookingModal({ isOpen, type, booking, onClose, onSave }:
   }, [isOpen, guestMode, fetchGuests])
 
   useEffect(() => {
-    if (isOpen) {
-      fetchRooms()
+    if (!isOpen) return
+    if (!form.checkInDate || !form.checkOutDate || form.checkOutDate <= form.checkInDate) {
+      setRoomOptions([])
+      setRoomsError(null)
+      return
     }
-  }, [isOpen, fetchRooms])
+
+    const controller = new AbortController()
+    const timer = window.setTimeout(async () => {
+      setRoomsLoading(true)
+      setRoomsError(null)
+      const query = new URLSearchParams({
+        apartmentType: form.apartmentType,
+        checkIn: form.checkInDate,
+        checkOut: form.checkOutDate,
+        guestCount: String(form.adultCount + form.childCount),
+        currency: form.currency,
+        ...(type === 'edit' && form.id ? { excludeBookingId: form.id } : {})
+      })
+      try {
+        const res = await apiClient.get<{ data: { rooms: Array<{ id: string; roomNumber: string; apartmentType: string; floor?: number; capacity: number; nightlyRate: number; total: number; currency: string }> } }>(`${API_ENDPOINTS.bookings.availableRooms}?${query}`)
+        if (controller.signal.aborted) return
+        const available = Array.isArray(res.data?.rooms)
+          ? res.data.rooms.map((room) => ({ ...room, type: room.apartmentType }))
+          : []
+        setRoomOptions(available)
+        setForm((previous) => {
+          const selected = available.find((room) => room.id === previous.roomId)
+          return selected
+            ? { ...previous, totalAmount: selected.total || 0 }
+            : { ...previous, room: '', roomId: undefined, totalAmount: 0 }
+        })
+        if (!available.length) setRoomsError('No rooms are available for this apartment type, guest count, and date range.')
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setRoomOptions([])
+          setRoomsError(error instanceof Error ? error.message : 'Could not check room availability')
+        }
+      } finally {
+        if (!controller.signal.aborted) setRoomsLoading(false)
+      }
+    }, 350)
+
+    return () => {
+      controller.abort()
+      window.clearTimeout(timer)
+    }
+  }, [form.adultCount, form.apartmentType, form.checkInDate, form.checkOutDate, form.childCount, form.currency, form.id, isOpen, type])
 
   // Filter guests on search input
   useEffect(() => {
@@ -256,19 +287,36 @@ export default function BookingModal({ isOpen, type, booking, onClose, onSave }:
       setSubmitError('Please select an existing guest or switch to "New Guest" to enter details manually.')
       return
     }
+    if (!form.checkInDate || !form.checkOutDate || form.checkOutDate <= form.checkInDate) {
+      setSubmitError('Choose a check-out date that is after the check-in date.')
+      return
+    }
+    if (!form.roomId) {
+      setSubmitError('Select one of the rooms confirmed as available for these dates.')
+      return
+    }
+    if (guestMode === 'new' && form.guestName.trim().split(/\s+/).length < 2) {
+      setSubmitError('Enter the guest’s first and last name.')
+      return
+    }
+    if (guestMode === 'new' && !/^\+[1-9]\d{7,14}$/.test(form.guestPhone.replace(/[\s()-]/g, ''))) {
+      setSubmitError('Enter the phone number in international format, for example +254712345678.')
+      return
+    }
     setIsSaving(true)
     setSubmitError(null)
 
     // Build the newGuest object for the backend when creating a fresh guest
     let newGuestPayload: BookingFormData['newGuest'] | undefined
-    if (guestMode === 'new' && !form.guestId) {
+    if (guestMode === 'new') {
       const nameParts = form.guestName.trim().split(/\s+/).filter(Boolean)
       const [first_name = form.guestName.trim(), ...rest] = nameParts
       newGuestPayload = {
         first_name,
         second_name: rest.join(' ') || 'N/A',
         email: form.guestEmail.trim(),
-        phone_number: form.guestPhone.trim()
+        phone_number: form.guestPhone.trim(),
+        country: form.guestCountry.trim()
       }
     }
 
@@ -426,7 +474,7 @@ export default function BookingModal({ isOpen, type, booking, onClose, onSave }:
             </div>
           ) : (
             /* ── New guest fields ── */
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div>
                 <label className={labelCls}>Full Name *</label>
                 <input
@@ -457,6 +505,16 @@ export default function BookingModal({ isOpen, type, booking, onClose, onSave }:
                   placeholder="+254 7XX XXX XXX"
                   className={inputCls}
                 />
+                <p className="mt-1 text-[11px] text-gray-400">Use international format, including the country code.</p>
+              </div>
+              <div>
+                <label className={labelCls}>Country</label>
+                <input
+                  value={form.guestCountry}
+                  onChange={(e) => handleChange('guestCountry', e.target.value)}
+                  placeholder="e.g. Kenya"
+                  className={inputCls}
+                />
               </div>
             </div>
           )}
@@ -470,45 +528,41 @@ export default function BookingModal({ isOpen, type, booking, onClose, onSave }:
               <label className={labelCls}>Room Number *</label>
               <select
                 required
-                value={form.room}
+                value={form.roomId || ''}
                 onChange={(e) => {
                   const nextRoom = e.target.value
-                  const selectedRoom = roomOptions.find((r) => r.roomNumber === nextRoom)
+                  const selectedRoom = roomOptions.find((r) => r.id === nextRoom)
                   setForm((prev) => ({
                     ...prev,
-                    room: nextRoom,
-                    apartmentType: selectedRoom?.type || prev.apartmentType
+                    room: selectedRoom?.roomNumber || '',
+                    roomId: nextRoom,
+                    apartmentType: selectedRoom?.type || prev.apartmentType,
+                    totalAmount: selectedRoom?.total || 0
                   }))
                 }}
                 className={inputCls}
-                disabled={roomsLoading}
+                disabled={roomsLoading || !form.checkInDate || !form.checkOutDate || form.checkOutDate <= form.checkInDate}
               >
                 <option value="" disabled>
-                  {roomsLoading ? 'Loading rooms…' : 'Select room number'}
+                  {roomsLoading
+                    ? 'Checking availability…'
+                    : !form.checkInDate || !form.checkOutDate
+                      ? 'Choose dates first'
+                      : roomOptions.length
+                        ? 'Select an available room'
+                        : 'No available rooms'}
                 </option>
                 {roomOptions.map((room) => (
-                  <option key={room.id} value={room.roomNumber}>
-                    {room.roomNumber}
+                  <option key={room.id} value={room.id}>
+                    {room.roomNumber}{room.floor ? ` · Floor ${room.floor}` : ''}{room.capacity ? ` · Sleeps ${room.capacity}` : ''}{room.total != null ? ` · ${room.currency} ${room.total}` : ''}
                   </option>
                 ))}
-                {form.room && !roomOptions.some((room) => room.roomNumber === form.room) && (
-                  <option value={form.room}>{form.room}</option>
-                )}
               </select>
+              {!roomsLoading && roomOptions.length > 0 && (
+                <p className="mt-1 text-xs text-emerald-700">{roomOptions.length} room{roomOptions.length === 1 ? '' : 's'} available for the selected stay.</p>
+              )}
               {roomsError && (
-                <p className="mt-1 text-xs text-red-600">
-                  {roomsError}.{' '}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRoomOptions([])
-                      fetchRooms()
-                    }}
-                    className="underline"
-                  >
-                    Retry
-                  </button>
-                </p>
+                <p className="mt-1 text-xs text-red-600">{roomsError}</p>
               )}
             </div>
             <div>
@@ -516,7 +570,7 @@ export default function BookingModal({ isOpen, type, booking, onClose, onSave }:
               <select
                 required
                 value={form.apartmentType}
-                onChange={(e) => handleChange('apartmentType', e.target.value)}
+                onChange={(e) => setForm((previous) => ({ ...previous, apartmentType: e.target.value, room: '', roomId: undefined, totalAmount: 0 }))}
                 className={inputCls}
               >
                 {APARTMENT_TYPES.map((t) => (
@@ -531,8 +585,9 @@ export default function BookingModal({ isOpen, type, booking, onClose, onSave }:
               <input
                 required
                 type="date"
+                min={type === 'add' ? new Date().toISOString().slice(0, 10) : undefined}
                 value={form.checkInDate}
-                onChange={(e) => handleChange('checkInDate', e.target.value)}
+                onChange={(e) => setForm((previous) => ({ ...previous, checkInDate: e.target.value, room: '', roomId: undefined, totalAmount: 0 }))}
                 className={inputCls}
               />
             </div>
@@ -541,10 +596,14 @@ export default function BookingModal({ isOpen, type, booking, onClose, onSave }:
               <input
                 required
                 type="date"
+                min={form.checkInDate || (type === 'add' ? new Date().toISOString().slice(0, 10) : undefined)}
                 value={form.checkOutDate}
-                onChange={(e) => handleChange('checkOutDate', e.target.value)}
+                onChange={(e) => setForm((previous) => ({ ...previous, checkOutDate: e.target.value, room: '', roomId: undefined, totalAmount: 0 }))}
                 className={inputCls}
               />
+              {form.checkInDate && form.checkOutDate && form.checkOutDate <= form.checkInDate && (
+                <p className="mt-1 text-xs text-red-600">Check-out must be after check-in.</p>
+              )}
             </div>
           </div>
         </div>
@@ -560,7 +619,7 @@ export default function BookingModal({ isOpen, type, booking, onClose, onSave }:
                 type="number"
                 min={1}
                 value={form.adultCount}
-                onChange={(e) => handleChange('adultCount', Number(e.target.value))}
+                onChange={(e) => setForm((previous) => ({ ...previous, adultCount: Number(e.target.value), room: '', roomId: undefined, totalAmount: 0 }))}
                 className={inputCls}
               />
             </div>
@@ -570,14 +629,14 @@ export default function BookingModal({ isOpen, type, booking, onClose, onSave }:
                 type="number"
                 min={0}
                 value={form.childCount}
-                onChange={(e) => handleChange('childCount', Number(e.target.value))}
+                onChange={(e) => setForm((previous) => ({ ...previous, childCount: Number(e.target.value), room: '', roomId: undefined, totalAmount: 0 }))}
                 className={inputCls}
               />
             </div>
             <div>
-              <label className={labelCls}>Total Amount ($) *</label>
+              <label className={labelCls}>Estimated total (server recalculates)</label>
               <input
-                required
+                readOnly
                 type="number"
                 min={0}
                 step="0.01"
@@ -587,21 +646,34 @@ export default function BookingModal({ isOpen, type, booking, onClose, onSave }:
               />
             </div>
             <div>
-              <label className={labelCls}>Payment Status *</label>
-              <select
-                required
-                value={form.paymentStatus}
-                onChange={(e) => handleChange('paymentStatus', e.target.value as BookingFormData['paymentStatus'])}
-                className={inputCls}
-              >
+              <label className={labelCls}>{type === 'add' ? 'Initial payment status' : 'Payment status'} *</label>
+              <select required value={form.paymentStatus} onChange={(e) => handleChange('paymentStatus', e.target.value as BookingFormData['paymentStatus'])} className={inputCls}>
                 <option value="unpaid">Unpaid</option>
-                <option value="partial">Partial</option>
+                <option value="partial">Partially paid</option>
                 <option value="paid">Paid</option>
+              </select>
+              {type === 'add' && <p className="mt-1 text-[11px] text-gray-400">New bookings normally start unpaid. Use Record Payment for an auditable partial payment.</p>}
+            </div>
+            <div>
+              <label className={labelCls}>Payment timing *</label>
+              <select required value={form.paymentMethod} onChange={(e) => handleChange('paymentMethod', e.target.value as BookingFormData['paymentMethod'])} className={inputCls}>
+                <option value="PAY_ON_ARRIVAL">Pay on arrival</option><option value="PAY_NOW">Awaiting online payment</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Booking source *</label>
+              <select required value={form.source} onChange={(e) => handleChange('source', e.target.value as BookingFormData['source'])} className={inputCls}>
+                <option value="ADMIN">Admin</option><option value="WHATSAPP">WhatsApp</option><option value="PHONE">Phone</option><option value="OTHER">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Currency *</label>
+              <select required value={form.currency} onChange={(e) => handleChange('currency', e.target.value as BookingFormData['currency'])} className={inputCls}>
+                <option value="USD">USD</option><option value="KES">KES</option>
               </select>
             </div>
           </div>
         </div>
-
         {/* ── Booking Status ───────────────────────────────────── */}
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Booking Status</p>

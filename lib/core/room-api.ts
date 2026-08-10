@@ -11,14 +11,12 @@ function mapHousekeepingToStatus(housekeepingStatus?: RoomApiRecord['housekeepin
 }
 
 function mapRoomFromApi(item: RoomApiRecord): Room {
-  const hasGuest = !!item.guest
-
   return {
     apiId: item._id,
     id: item.room_number || item._id,
     type: item.type || 'Room',
-    status: hasGuest ? 'occupied' : mapHousekeepingToStatus(item.housekeeping_status),
-    guest: item.guest || null,
+    status: mapHousekeepingToStatus(item.housekeeping_status),
+    guest: null,
     checkout: null,
     maintenance: 'none',
     cleanliness: (item.housekeeping_status || 'Clean').toLowerCase(),
@@ -40,10 +38,6 @@ function mapRoomToApiPayload(room: Room): RoomApiPayload {
     floor: room.floor,
     price: room.price,
     housekeeping_status: mapRoomStatusToHousekeeping(room.status)
-  }
-
-  if (room.guest) {
-    payload.guest = room.guest
   }
 
   return payload

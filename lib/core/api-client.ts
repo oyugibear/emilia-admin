@@ -1,6 +1,11 @@
 import { sessionManager } from './session-manager'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === 'development' ? 'http://localhost:8000/api/v1' : '/api/v1')
+).replace(/\/$/, '')
+
+const REQUEST_TIMEOUT_MS = 15_000
 
 export interface ApiErrorPayload {
   message: string
@@ -25,8 +30,10 @@ async function parseResponse<T>(response: Response): Promise<T> {
   const body = contentType.includes('application/json') ? await response.json() : await response.text()
 
   if (!response.ok) {
+    const payload = typeof body === 'object' && body ? body as Record<string, unknown> : null
+    const errors = payload && Array.isArray(payload.errors) ? payload.errors as Array<{ message?: unknown }> : []
     const message =
-      (typeof body === 'object' && body && ('error' in body ? String((body as any).error) : 'message' in body ? String((body as any).message) : null)) ||
+      (payload && (errors.length ? String(errors[0]?.message || '') : payload.error ? String(payload.error) : payload.message ? String(payload.message) : null)) ||
       response.statusText ||
       'Request failed'
 
@@ -52,7 +59,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers,
-    credentials: 'include'
+    credentials: 'include',
+    signal: init.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS)
   })
 
   return parseResponse<T>(response)

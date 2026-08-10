@@ -98,7 +98,7 @@ export default function Login() {
               onChange={(e) => setRememberMe(e.target.checked)}
               label="Remember me"
             />
-            <Link href="/Auth/ForgotPassword" className="text-[#1D4E56] hover:text-[#2a6670] font-medium">
+            <Link href="/auth/ForgotPassword" className="text-[#1D4E56] hover:text-[#2a6670] font-medium">
               Forgot password?
             </Link>
           </div>

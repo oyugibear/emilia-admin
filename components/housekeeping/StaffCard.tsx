@@ -16,10 +16,9 @@ export interface HousekeepingStaff {
 interface StaffCardProps {
   staff: HousekeepingStaff
   onAssignTask?: (staffId: string) => void
-  onUpdateStatus?: (staffId: string, status: HousekeepingStaff['status']) => void
 }
 
-export default function StaffCard({ staff, onAssignTask, onUpdateStatus }: StaffCardProps) {
+export default function StaffCard({ staff, onAssignTask }: StaffCardProps) {
   const getStatusColor = (status: HousekeepingStaff['status']) => {
     switch (status) {
       case 'available': return 'bg-green-100 text-green-800'
@@ -28,13 +27,6 @@ export default function StaffCard({ staff, onAssignTask, onUpdateStatus }: Staff
       case 'off_duty': return 'bg-gray-100 text-gray-800'
       default: return 'bg-gray-100 text-gray-800'
     }
-  }
-
-  const getEfficiencyColor = (efficiency: number) => {
-    if (efficiency >= 90) return 'bg-green-500'
-    if (efficiency >= 75) return 'bg-yellow-500'
-    if (efficiency >= 60) return 'bg-orange-500'
-    return 'bg-red-500'
   }
 
   return (
@@ -64,19 +56,6 @@ export default function StaffCard({ staff, onAssignTask, onUpdateStatus }: Staff
         <div className="text-sm">
           <span className="text-gray-600">Shift:</span>
           <p className="font-medium">{staff.shift}</p>
-        </div>
-
-        <div>
-          <div className="flex justify-between text-sm mb-1">
-            <span className="text-gray-600">Efficiency:</span>
-            <span className="font-medium">{staff.efficiency}%</span>
-          </div>
-          <div className="bg-gray-200 rounded-full h-2">
-            <div 
-              className={`h-2 rounded-full transition-all duration-300 ${getEfficiencyColor(staff.efficiency)}`}
-              style={{ width: `${staff.efficiency}%` }}
-            />
-          </div>
         </div>
 
         {staff.status === 'available' && onAssignTask && (

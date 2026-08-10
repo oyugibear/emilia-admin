@@ -22,8 +22,11 @@ export default function TaskList({
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterPriority, setFilterPriority] = useState<string>('all')
   const [filterTaskType, setFilterTaskType] = useState<string>('all')
+  const [search, setSearch] = useState('')
 
   const filteredTasks = tasks.filter(task => {
+    const query = search.trim().toLowerCase()
+    if (query && !`${task.roomNumber} ${task.roomType} ${task.assignedTo} ${task.notes || ''}`.toLowerCase().includes(query)) return false
     if (filterStatus !== 'all' && task.status !== filterStatus) return false
     if (filterPriority !== 'all' && task.priority !== filterPriority) return false
     if (filterTaskType !== 'all' && task.taskType !== filterTaskType) return false
@@ -57,6 +60,13 @@ export default function TaskList({
             <MdFilterList className="w-4 h-4 text-gray-500" />
             <span className="text-sm text-gray-600">Filters:</span>
           </div>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search room, staff or notes"
+            className="min-w-56 flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]"
+          />
           
           <select 
             value={filterStatus} 

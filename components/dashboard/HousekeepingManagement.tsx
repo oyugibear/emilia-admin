@@ -57,6 +57,7 @@ export default function HousekeepingManagement() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null)
+  const [selectedTask, setSelectedTask] = useState<HousekeepingTask | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -87,7 +88,7 @@ export default function HousekeepingManagement() {
               status: mapStaffStatus(member.profile_status),
               currentTasks: 0,
               completedToday: 0,
-              efficiency: 90,
+              efficiency: 0,
               shift: mapShiftLabel(member.shift_schedule),
               department: 'Housekeeping'
             } satisfies HousekeepingStaff
@@ -112,12 +113,16 @@ export default function HousekeepingManagement() {
   }, [])
 
   const staffWithTaskCounts = useMemo(() => {
-    return staffMembers.map((member) => ({
-      ...member,
-      currentTasks: tasks.filter(
-        (task) => task.assignedTo === member.name && task.status !== 'completed'
-      ).length
-    }))
+    const today = new Date().toISOString().slice(0, 10)
+    return staffMembers.map((member) => {
+      const currentTasks = tasks.filter((task) => task.assignedTo === member.name && task.status !== 'completed').length
+      return {
+        ...member,
+        currentTasks,
+        completedToday: tasks.filter((task) => task.assignedTo === member.name && task.status === 'completed' && (task.completedAt || task.date || '').startsWith(today)).length,
+        status: member.status === 'available' && currentTasks > 0 ? 'busy' as const : member.status
+      }
+    })
   }, [staffMembers, tasks])
 
   const selectedStaff = staffWithTaskCounts.find((member) => member.id === selectedStaffId) || null
@@ -134,11 +139,13 @@ export default function HousekeepingManagement() {
   }
 
   const handleAddTask = () => {
+    setSelectedTask(null)
     setIsTaskModalOpen(true)
   }
 
   const handleEditTask = (taskId: string) => {
-    console.log('Edit task:', taskId)
+    setSelectedTask(tasks.find((item) => item.apiId === taskId || item.id === taskId) || null)
+    setIsTaskModalOpen(true)
   }
 
   const handleDeleteTask = (taskId: string) => {
@@ -172,11 +179,12 @@ export default function HousekeepingManagement() {
     setIsAssignModalOpen(true)
   }
 
-  const handleUpdateStaffStatus = (staffId: string, status: HousekeepingStaff['status']) => {
-    setStaffMembers((prev) => prev.map((member) => (member.id === staffId ? { ...member, status } : member)))
-  }
-
   const handleSaveTask = async (task: HousekeepingTaskFormData) => {
+    if (selectedTask) {
+      const updatedTask = await housekeepingApi.updateHousekeeping({ ...selectedTask, ...task })
+      setTasks((prev) => prev.map((item) => item.apiId === updatedTask.apiId ? updatedTask : item))
+      return
+    }
     const createdTask = await housekeepingApi.createHousekeeping(task)
     setTasks((prev) => [createdTask, ...prev])
   }
@@ -207,9 +215,12 @@ export default function HousekeepingManagement() {
           <h2 className="text-xl font-semibold tracking-tight text-gray-900">Housekeeping Management</h2>
           <p className="mt-0.5 text-sm text-gray-500">Manage cleaning schedules and staff assignments</p>
           {isLoading && <p className="mt-1 text-xs text-gray-500">Loading housekeeping data...</p>}
-          {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
         </div>
       </div>
+
+      {error && <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3"><div><p className="text-sm font-semibold text-red-800">Housekeeping data could not be loaded or updated</p><p className="text-xs text-red-700">{error}</p></div><button onClick={() => window.location.reload()} className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700">Try again</button></div>}
+
+      {(stats.overdueTasks > 0 || tasks.some((task) => task.assignedTo === 'Unassigned' && task.status !== 'completed')) && <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><strong>Schedule attention needed.</strong> {stats.overdueTasks ? `${stats.overdueTasks} overdue task${stats.overdueTasks === 1 ? '' : 's'}. ` : ''}{tasks.filter((task) => task.assignedTo === 'Unassigned' && task.status !== 'completed').length} active task(s) are unassigned.</div>}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-6">
@@ -274,7 +285,6 @@ export default function HousekeepingManagement() {
           <StaffList
             staff={staffWithTaskCounts}
             onAssignTask={handleAssignTask}
-            onUpdateStatus={handleUpdateStaffStatus}
           />
         </div>
       </div>
@@ -283,7 +293,8 @@ export default function HousekeepingManagement() {
       isOpen={isTaskModalOpen}
       rooms={roomOptions}
       staffOptions={staffNames}
-      onClose={() => setIsTaskModalOpen(false)}
+      task={selectedTask}
+      onClose={() => { setIsTaskModalOpen(false); setSelectedTask(null) }}
       onSave={handleSaveTask}
     />
     <HousekeepingAssignTaskModal

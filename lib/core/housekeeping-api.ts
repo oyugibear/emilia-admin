@@ -122,6 +122,7 @@ const mapHousekeepingFromApi = (item: HousekeepingApiRecord): HousekeepingTask =
     assignedTo: mapAssignedTo(item),
     priority: normalizePriority(item.priority),
     scheduledTime: item.scheduled_time || '00:00',
+    date: item.date ? item.date.split('T')[0] : undefined,
     estimatedDuration: Number.isFinite(durationValue) && durationValue > 0 ? durationValue : 45,
     guestCheckOut: item.guest_check_out,
     guestCheckIn: item.guest_check_in,
@@ -133,7 +134,7 @@ const mapHousekeepingFromApi = (item: HousekeepingApiRecord): HousekeepingTask =
 const buildPayload = (task: HousekeepingTaskFormData | HousekeepingTask): HousekeepingApiPayload => ({
   room: task.roomId || '',
   maid_name: task.assignedTo && task.assignedTo !== 'Unassigned' ? task.assignedTo : undefined,
-  date: new Date().toISOString().slice(0, 10),
+  date: task.date || new Date().toISOString().slice(0, 10),
   scheduled_time: task.scheduledTime,
   duration: String(task.estimatedDuration),
   status: task.status,

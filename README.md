@@ -16,6 +16,21 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Production deployment
+
+Set `API_PROXY_TARGET` to the deployed backend origin (for example,
+`https://api.example.com`). In production the browser uses same-origin
+`/api/v1` requests and Next.js proxies them to that backend, avoiding localhost
+URLs and cross-origin browser requests.
+
+Alternatively, set `NEXT_PUBLIC_API_URL` to the complete public API base URL.
+When using that cross-origin option, the backend must include the admin origin
+in `ADMIN_URL` or `ALLOWED_ORIGINS`. Because `NEXT_PUBLIC_API_URL` is embedded
+at build time, redeploy the admin after changing it.
+
+Do not add a catch-all rewrite from `/(.*)` to `/`; Next.js already routes App
+Router pages and that rewrite prevents direct navigation to admin pages.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

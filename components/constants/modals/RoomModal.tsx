@@ -43,9 +43,9 @@ export default function RoomModal({ isOpen, type, room, onClose, onSave }: RoomM
     const normalizedRoom: Room = {
       ...form,
       id: form.id.trim(),
-      guest: form.guest && form.guest.trim() ? form.guest.trim() : null,
-      checkout: form.checkout && form.checkout.trim() ? form.checkout.trim() : null,
-      maintenance: form.maintenance.trim() || 'none'
+      guest: type === 'edit' ? form.guest : null,
+      checkout: type === 'edit' ? form.checkout : null,
+      maintenance: type === 'edit' ? form.maintenance : 'none'
     }
 
     try {
@@ -82,8 +82,7 @@ export default function RoomModal({ isOpen, type, room, onClose, onSave }: RoomM
                 required
                 value={form.id}
                 onChange={(e) => handleChange('id', e.target.value)}
-                disabled={type === 'edit'}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56] disabled:bg-gray-100"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]"
                 placeholder="e.g. S005"
               />
             </div>
@@ -96,23 +95,21 @@ export default function RoomModal({ isOpen, type, room, onClose, onSave }: RoomM
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]"
               >
                 <option value="Studio">Studio</option>
-                <option value="1-Bedroom">1-Bedroom</option>
-                <option value="2-Bedroom">2-Bedroom</option>
+                <option value="One Bedroom">One Bedroom</option>
+                <option value="Two Bedroom">Two Bedroom</option>
+                {form.type && !['Studio', 'One Bedroom', 'Two Bedroom'].includes(form.type) && <option value={form.type}>{form.type}</option>}
               </select>
             </div>
 
             <div>
-              <label className="mb-1 block text-sm text-gray-700">Status</label>
+              <label className="mb-1 block text-sm text-gray-700">Housekeeping condition</label>
               <select
                 value={form.status}
                 onChange={(e) => handleChange('status', e.target.value as Room['status'])}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]"
               >
-                <option value="available">Available</option>
-                <option value="occupied">Occupied</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="checkout">Checkout</option>
-                <option value="housekeeping">Housekeeping</option>
+                <option value="available">Clean / ready</option>
+                <option value="housekeeping">Dirty / cleaning in progress</option>
               </select>
             </div>
 
@@ -140,35 +137,7 @@ export default function RoomModal({ isOpen, type, room, onClose, onSave }: RoomM
               />
             </div>
 
-            <div>
-              <label className="mb-1 block text-sm text-gray-700">Guest (optional)</label>
-              <input
-                value={form.guest ?? ''}
-                onChange={(e) => handleChange('guest', e.target.value || null)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]"
-                placeholder="Guest name"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm text-gray-700">Checkout (optional)</label>
-              <input
-                type="date"
-                value={form.checkout ?? ''}
-                onChange={(e) => handleChange('checkout', e.target.value || null)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm text-gray-700">Maintenance</label>
-              <input
-                value={form.maintenance}
-                onChange={(e) => handleChange('maintenance', e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]"
-                placeholder="none"
-              />
-            </div>
+            <div className="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">Occupancy, guest, and checkout are updated automatically from bookings. Open maintenance work automatically marks this room as under maintenance.</div>
           </div>
 
           <div className="flex justify-end gap-2 border-t pt-4">

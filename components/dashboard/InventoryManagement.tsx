@@ -1,13 +1,15 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
-import { Table } from 'antd'
+import React, { useEffect, useMemo, useState } from 'react'
+import { Input, Table } from 'antd'
 import type { TableProps } from 'antd'
 import { FaExclamationTriangle } from 'react-icons/fa'
 import { MdInventory } from 'react-icons/md'
 import InventoryModal from '@/components/constants/modals/InventoryModal'
 import type { InventoryItem, InventoryModalType } from '@/types'
 import { inventoryApi } from '@/lib/core/inventory-api'
+import { roomApi } from '@/lib/core/room-api'
+import type { Room } from '@/types'
 
 const getStockStatus = (item: InventoryItem) => {
   if (item.stock <= item.minStock * 0.5) return 'critical'
@@ -31,6 +33,10 @@ export default function InventoryManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalType, setModalType] = useState<InventoryModalType>('add')
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
+  const [rooms, setRooms] = useState<Room[]>([])
+  const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
 
   useEffect(() => {
     let isMounted = true
@@ -40,9 +46,10 @@ export default function InventoryManagement() {
       setError(null)
 
       try {
-        const data = await inventoryApi.getInventories()
+        const [data, roomData] = await Promise.all([inventoryApi.getInventories(), roomApi.getRooms()])
         if (!isMounted) return
         setInventoryItems(data)
+        setRooms(roomData)
       } catch (err) {
         if (!isMounted) return
         setError(err instanceof Error ? err.message : 'Failed to load inventory items')
@@ -61,6 +68,14 @@ export default function InventoryManagement() {
   const criticalItems = inventoryItems.filter(item => getStockStatus(item) === 'critical').length
   const lowItems = inventoryItems.filter(item => getStockStatus(item) === 'low').length
   const goodItems = inventoryItems.filter(item => getStockStatus(item) === 'good').length
+  const categories = useMemo(() => Array.from(new Set(inventoryItems.map((item) => item.category))).sort(), [inventoryItems])
+  const filteredItems = useMemo(() => inventoryItems.filter((item) => {
+    const query = search.trim().toLowerCase()
+    if (query && !`${item.item} ${item.category} ${item.roomLabel || 'main store'}`.toLowerCase().includes(query)) return false
+    if (categoryFilter && item.category !== categoryFilter) return false
+    if (statusFilter && getStockStatus(item) !== statusFilter) return false
+    return true
+  }), [inventoryItems, search, categoryFilter, statusFilter])
 
   const openAddModal = () => {
     setModalType('add')
@@ -97,6 +112,12 @@ export default function InventoryManagement() {
       dataIndex: 'category',
       key: 'category',
       render: (value: string) => <span className="text-sm text-gray-500">{value}</span>
+    },
+    {
+      title: 'Location',
+      dataIndex: 'roomLabel',
+      key: 'roomLabel',
+      render: (value?: string) => <span className="text-sm text-gray-500">{value ? `Room ${value}` : 'Main store'}</span>
     },
     {
       title: 'Current Stock',
@@ -139,7 +160,7 @@ export default function InventoryManagement() {
           >
             Update
           </button>
-          <button className="text-blue-600 hover:text-blue-900">Reorder</button>
+          <button onClick={() => openEditModal(item)} className="text-blue-600 hover:text-blue-900">Record stock</button>
         </div>
       )
     }
@@ -152,7 +173,6 @@ export default function InventoryManagement() {
           <h2 className="text-2xl font-bold text-gray-900">Inventory Management</h2>
           <p className="text-gray-600 mt-1">Track and manage all inventory items (the stores)</p>
           {isLoading && <p className="text-sm text-gray-500 mt-1">Loading inventory items...</p>}
-          {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
         </div>
         <button
           onClick={openAddModal}
@@ -161,6 +181,8 @@ export default function InventoryManagement() {
           Add Item
         </button>
       </div>
+
+      {error && <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3"><div><p className="text-sm font-semibold text-red-800">Inventory could not be loaded</p><p className="text-xs text-red-700">{error}</p></div><button onClick={() => window.location.reload()} className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700">Try again</button></div>}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -222,8 +244,8 @@ export default function InventoryManagement() {
                       <p className="text-sm text-gray-600">Current stock: {item.stock} (Min: {item.minStock})</p>
                     </div>
                     <div className="flex gap-2">
-                      <button className="bg-[#1D4E56] text-white px-3 py-1 rounded text-sm hover:bg-[#2a6670] transition-colors">
-                        Reorder
+                      <button onClick={() => openEditModal(item)} className="bg-[#1D4E56] text-white px-3 py-1 rounded text-sm hover:bg-[#2a6670] transition-colors">
+                        Record stock
                       </button>
                       <button
                         onClick={() => openEditModal(item)}
@@ -243,16 +265,13 @@ export default function InventoryManagement() {
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <h3 className="text-lg font-semibold text-gray-900">All Inventory Items</h3>
-          <div className="flex gap-2">
-            <select className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <Input.Search value={search} onChange={(e) => setSearch(e.target.value)} allowClear placeholder="Search item or location" className="min-w-56 flex-1" />
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]">
               <option value="">All Categories</option>
-              <option value="bedding">Bedding</option>
-              <option value="bathroom">Bathroom</option>
-              <option value="kitchen">Kitchen</option>
-              <option value="housekeeping">Housekeeping</option>
-              <option value="maintenance">Maintenance</option>
+              {categories.map((category) => <option key={category} value={category}>{category}</option>)}
             </select>
-            <select className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]">
               <option value="">All Status</option>
               <option value="good">Good</option>
               <option value="low">Low Stock</option>
@@ -264,8 +283,9 @@ export default function InventoryManagement() {
         <Table<InventoryItem>
           rowKey={(item) => item.apiId || item.id}
           columns={inventoryColumns}
-          dataSource={inventoryItems}
-          pagination={false}
+          dataSource={filteredItems}
+          pagination={{ pageSize: 10, showSizeChanger: false }}
+          locale={{ emptyText: inventoryItems.length ? 'No inventory matches these filters.' : 'No inventory items yet. Add the first item to begin tracking stock.' }}
           scroll={{ x: 900 }}
         />
       </div>
@@ -274,6 +294,7 @@ export default function InventoryManagement() {
         isOpen={isModalOpen}
         type={modalType}
         item={selectedItem}
+        rooms={rooms.map((room) => ({ id: room.apiId || room.id, label: room.id }))}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveItem}
       />

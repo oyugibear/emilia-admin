@@ -28,7 +28,7 @@ const defaultInventoryItem: InventoryItem = {
   lastUpdated: new Date().toISOString().slice(0, 10)
 }
 
-export default function InventoryModal({ isOpen, type, item, onClose, onSave }: InventoryModalProps) {
+export default function InventoryModal({ isOpen, type, item, rooms = [], onClose, onSave }: InventoryModalProps) {
   const [form, setForm] = useState<InventoryItem>(defaultInventoryItem)
   const [isSaving, setIsSaving] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -122,14 +122,16 @@ export default function InventoryModal({ isOpen, type, item, onClose, onSave }: 
             </div>
 
             <div>
-              <label className="mb-1 block text-sm text-gray-700">Last Updated</label>
-              <input
-                required
-                type="date"
-                value={form.lastUpdated}
-                onChange={(e) => handleChange('lastUpdated', e.target.value)}
+              <label className="mb-1 block text-sm font-medium text-gray-700">Stored in</label>
+              <select
+                value={form.roomId || ''}
+                onChange={(e) => handleChange('roomId', e.target.value || undefined)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]"
-              />
+              >
+                <option value="">Main store / shared stock</option>
+                {rooms.map((room) => <option key={room.id} value={room.id}>Room {room.label}</option>)}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Choose a room only when this stock belongs to that room.</p>
             </div>
 
             <div>
@@ -155,6 +157,12 @@ export default function InventoryModal({ isOpen, type, item, onClose, onSave }: 
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]"
               />
             </div>
+          </div>
+
+          <div className={`rounded-lg border px-3 py-2 text-sm ${form.stock <= form.minStock ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-green-200 bg-green-50 text-green-800'}`}>
+            {form.stock <= form.minStock
+              ? `Stock warning: ${Math.max(0, form.minStock - form.stock)} more needed to reach the minimum.`
+              : `${form.stock - form.minStock} units above the minimum stock level.`}
           </div>
 
           <div className="flex justify-end gap-2 border-t pt-4">

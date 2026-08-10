@@ -13,6 +13,7 @@ export interface HousekeepingTaskFormData {
   status: HousekeepingTask['status']
   assignedTo: string
   scheduledTime: string
+  date: string
   estimatedDuration: number
   guestCheckOut?: string
   guestCheckIn?: string
@@ -27,6 +28,7 @@ interface HousekeepingTaskModalProps {
     type: HousekeepingTask['roomType']
   }>
   staffOptions: string[]
+  task?: HousekeepingTask | null
   onClose: () => void
   onSave: (task: HousekeepingTaskFormData) => Promise<void> | void
 }
@@ -40,19 +42,25 @@ const createDefaultTask = (): HousekeepingTaskFormData => ({
   status: 'pending',
   assignedTo: 'Unassigned',
   scheduledTime: '',
+  date: new Date().toISOString().slice(0, 10),
   estimatedDuration: 45,
   guestCheckOut: '',
   guestCheckIn: '',
   notes: ''
 })
 
-export default function HousekeepingTaskModal({ isOpen, rooms, staffOptions, onClose, onSave }: HousekeepingTaskModalProps) {
+export default function HousekeepingTaskModal({ isOpen, rooms, staffOptions, task, onClose, onSave }: HousekeepingTaskModalProps) {
   const [form, setForm] = useState<HousekeepingTaskFormData>(() => createDefaultTask())
   const [isSaving, setIsSaving] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isOpen) return
+    if (task) {
+      setForm({ roomId: task.roomId || '', roomNumber: task.roomNumber, roomType: task.roomType, taskType: task.taskType, priority: task.priority, status: task.status, assignedTo: task.assignedTo, scheduledTime: task.scheduledTime, date: task.date || new Date().toISOString().slice(0, 10), estimatedDuration: task.estimatedDuration, guestCheckOut: task.guestCheckOut || '', guestCheckIn: task.guestCheckIn || '', notes: task.notes || '' })
+      setSubmitError(null)
+      return
+    }
     const defaultRoom = rooms[0]
     setForm({
       ...createDefaultTask(),
@@ -61,7 +69,7 @@ export default function HousekeepingTaskModal({ isOpen, rooms, staffOptions, onC
       roomType: defaultRoom?.type || 'Studio'
     })
     setSubmitError(null)
-  }, [isOpen, rooms])
+  }, [isOpen, rooms, task])
 
   const handleChange = <K extends keyof HousekeepingTaskFormData>(key: K, value: HousekeepingTaskFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -80,6 +88,10 @@ export default function HousekeepingTaskModal({ isOpen, rooms, staffOptions, onC
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (form.guestCheckOut && form.guestCheckIn && form.guestCheckIn <= form.guestCheckOut) {
+      setSubmitError('Guest check-in must be later than check-out so the team has a cleaning window.')
+      return
+    }
     setIsSaving(true)
     setSubmitError(null)
 
@@ -105,7 +117,7 @@ export default function HousekeepingTaskModal({ isOpen, rooms, staffOptions, onC
   return (
     <Modal
       open={isOpen}
-      title="Add Housekeeping Task"
+      title={task ? 'Edit Housekeeping Task' : 'Add Housekeeping Task'}
       onCancel={onClose}
       footer={null}
       destroyOnHidden
@@ -120,6 +132,7 @@ export default function HousekeepingTaskModal({ isOpen, rooms, staffOptions, onC
           )}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">Schedule the task inside the guest turnover window. Room type is filled from the selected room.</div>
             <div>
               <label className="mb-1 block text-sm text-gray-700">Room</label>
               <select
@@ -177,6 +190,11 @@ export default function HousekeepingTaskModal({ isOpen, rooms, staffOptions, onC
                 <option value="high">High</option>
                 <option value="urgent">Urgent</option>
               </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm text-gray-700">Task Date</label>
+              <input required type="date" value={form.date} onChange={(e) => handleChange('date', e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]" />
             </div>
 
             <div>
@@ -278,7 +296,7 @@ export default function HousekeepingTaskModal({ isOpen, rooms, staffOptions, onC
               disabled={isSaving}
               className="rounded-md bg-[#1D4E56] px-4 py-2 text-sm text-white hover:bg-[#2a6670]"
             >
-              {isSaving ? 'Saving...' : 'Add Task'}
+              {isSaving ? 'Saving...' : task ? 'Save Changes' : 'Add Task'}
             </button>
           </div>
         </form>
