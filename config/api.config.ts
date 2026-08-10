@@ -1,5 +1,8 @@
 // API Configuration
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+export const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === 'development' ? 'http://localhost:8000/api/v1' : '/api/v1')
+).replace(/\/$/, '');
 
 // Add other API configuration constants here
 export const API_ENDPOINTS = {
@@ -53,7 +56,9 @@ export const API_ENDPOINTS = {
   },
 } as const;
 
-export default {
+const apiConfig = {
   API_URL,
   API_ENDPOINTS,
 };
+
+export default apiConfig;

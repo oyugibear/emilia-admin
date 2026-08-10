@@ -83,6 +83,7 @@ export interface MaintenanceModalProps {
 	type: MaintenanceModalType
 	maintenance: MaintenanceRequest | null
 	roomNumbers: string[]
+	staffOptions?: Array<{ id: string; name: string }>
 	onClose: () => void
 	onSave: (maintenance: MaintenanceRequest) => Promise<void> | void
 }
@@ -134,6 +135,7 @@ export type InventoryModalType = 'add' | 'edit'
 export interface InventoryItem {
 	apiId?: string
 	roomId?: string
+	roomLabel?: string
 	id: string
 	item: string
 	stock: number
@@ -147,6 +149,7 @@ export interface InventoryModalProps {
 	isOpen: boolean
 	type: InventoryModalType
 	item: InventoryItem | null
+	rooms?: Array<{ id: string; label: string }>
 	onClose: () => void
 	onSave: (item: InventoryItem) => Promise<void> | void
 }

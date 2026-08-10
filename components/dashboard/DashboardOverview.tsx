@@ -1,10 +1,26 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { FaBed, FaTools, FaUsers, FaCheckCircle } from 'react-icons/fa'
+import Link from 'next/link'
+import { FaBed, FaCalendarCheck, FaUsers, FaMoneyBillWave } from 'react-icons/fa'
 import { roomApi } from '@/lib/core/room-api'
 import { maintenanceApi } from '@/lib/core/maintenance-api'
+import { apiClient } from '@/lib/core/api-client'
+import { API_ENDPOINTS } from '@/lib/core/api-endpoints'
 import type { MaintenanceRequest, Room } from '@/types'
+
+interface OverviewBooking {
+  _id: string
+  room?: string | { _id?: string; room_number?: string }
+  guest?: { first_name?: string; second_name?: string }
+  check_in_date?: string
+  check_out_date?: string
+  status?: string
+  payment_status?: string
+  amount_due?: number
+  currency?: string
+  confirmation_code?: string
+}
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -55,6 +71,7 @@ const toTitleCase = (value: string) =>
 export default function DashboardOverview() {
   const [rooms, setRooms] = useState<Room[]>([])
   const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>([])
+  const [bookings, setBookings] = useState<OverviewBooking[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -66,14 +83,16 @@ export default function DashboardOverview() {
       setError(null)
 
       try {
-        const [roomsData, maintenanceData] = await Promise.all([
+        const [roomsData, maintenanceData, bookingResponse] = await Promise.all([
           roomApi.getRooms(),
-          maintenanceApi.getMaintenances()
+          maintenanceApi.getMaintenances(),
+          apiClient.get<{ data: OverviewBooking[] }>(API_ENDPOINTS.bookings.all)
         ])
 
         if (!isMounted) return
         setRooms(roomsData)
         setMaintenanceRequests(maintenanceData)
+        setBookings(Array.isArray(bookingResponse.data) ? bookingResponse.data : [])
       } catch (err) {
         if (!isMounted) return
         setError(err instanceof Error ? err.message : 'Failed to load dashboard overview')
@@ -90,30 +109,41 @@ export default function DashboardOverview() {
   }, [])
 
   const stats = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    const activeStatuses = ['reserved', 'confirmed', 'checked_in', 'pending_payment', 'pending']
+    const activeBookings = bookings.filter((booking) => activeStatuses.includes((booking.status || '').toLowerCase()) && (booking.check_in_date || '') <= today && (booking.check_out_date || '') > today)
+    const occupiedRoomIds = new Set(activeBookings.map((booking) => typeof booking.room === 'string' ? booking.room : booking.room?._id).filter(Boolean))
     const totalRooms = rooms.length
-    const occupiedRooms = rooms.filter((room) => room.status === 'occupied').length
+    const occupiedRooms = occupiedRoomIds.size
     const maintenanceRooms = rooms.filter((room) => room.status === 'maintenance').length
-    const availableRooms = rooms.filter((room) => room.status === 'available').length
+    const availableRooms = Math.max(0, totalRooms - occupiedRooms - maintenanceRooms)
 
     return {
       totalRooms,
       occupiedRooms,
       maintenanceRooms,
-      availableRooms
+      availableRooms,
+      arrivalsToday: bookings.filter((booking) => booking.check_in_date === today && (booking.status || '').toLowerCase() !== 'cancelled').length,
+      departuresToday: bookings.filter((booking) => booking.check_out_date === today && (booking.status || '').toLowerCase() !== 'cancelled').length,
+      unpaidBookings: bookings.filter((booking) => !['paid', 'refunded'].includes((booking.payment_status || '').toLowerCase()) && (booking.status || '').toLowerCase() !== 'cancelled').length
     }
-  }, [rooms])
+  }, [bookings, rooms])
 
   const recentMaintenance = useMemo(() => maintenanceRequests.slice(0, 5), [maintenanceRequests])
   const recentRooms = useMemo(() => rooms.slice(0, 8), [rooms])
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-        <h2 className="text-xl font-semibold tracking-tight text-gray-900">Overview</h2>
-        <p className="mt-0.5 text-sm text-gray-500">Live snapshot of rooms and maintenance activity</p>
+      <div className="overflow-hidden rounded-2xl bg-linear-to-br from-[#173f46] to-[#2b6973] px-5 py-5 text-white shadow-lg shadow-[#1D4E56]/10 sm:px-7">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-100">{new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date())}</p>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight">Good day, Emilia team</h2>
+        <p className="mt-1 max-w-2xl text-sm text-teal-50/80">Your operational view of arrivals, occupied rooms, payments, housekeeping, and maintenance.</p>
+        <div className="mt-4 flex flex-wrap gap-2"><Link href="/bookings" className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-[#1D4E56]">Review bookings</Link><Link href="/housekeeping" className="rounded-lg border border-white/25 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">Open housekeeping</Link></div>
         {isLoading && <p className="mt-1 text-xs text-gray-500">Loading dashboard data...</p>}
-        {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
       </div>
+
+      {error && <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3"><div><p className="text-sm font-semibold text-red-800">Dashboard data could not be loaded</p><p className="text-xs text-red-700">{error}</p></div><button className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700" onClick={() => window.location.reload()}>Try again</button></div>}
+      {!isLoading && stats.unpaidBookings > 0 && <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><strong>{stats.unpaidBookings} booking{stats.unpaidBookings === 1 ? '' : 's'} need payment attention.</strong> Review balances before arrivals. <Link className="font-semibold underline" href="/bookings">Open bookings</Link></div>}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
@@ -131,7 +161,7 @@ export default function DashboardOverview() {
         <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Occupied</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Occupied today</p>
               <p className="mt-1 text-2xl font-semibold text-blue-600">{stats.occupiedRooms}</p>
             </div>
             <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
@@ -143,11 +173,11 @@ export default function DashboardOverview() {
         <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Maintenance</p>
-              <p className="mt-1 text-2xl font-semibold text-red-600">{stats.maintenanceRooms}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Arriving today</p>
+              <p className="mt-1 text-2xl font-semibold text-red-600">{stats.arrivalsToday}</p>
             </div>
             <div className="rounded-lg bg-red-50 p-2 text-red-600">
-              <FaTools className="text-base" />
+              <FaCalendarCheck className="text-base" />
             </div>
           </div>
         </div>
@@ -155,11 +185,11 @@ export default function DashboardOverview() {
         <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Available</p>
-              <p className="mt-1 text-2xl font-semibold text-green-600">{stats.availableRooms}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Unpaid bookings</p>
+              <p className="mt-1 text-2xl font-semibold text-green-600">{stats.unpaidBookings}</p>
             </div>
             <div className="rounded-lg bg-green-50 p-2 text-green-600">
-              <FaCheckCircle className="text-base" />
+              <FaMoneyBillWave className="text-base" />
             </div>
           </div>
         </div>
@@ -235,7 +265,7 @@ export default function DashboardOverview() {
         <h3 className="text-sm font-semibold text-gray-900">Quick Summary</h3>
         <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-600 sm:grid-cols-4">
           <p>Open Maintenance: <span className="font-semibold text-gray-900">{maintenanceRequests.filter((item) => item.status !== 'completed').length}</span></p>
-          <p>Completed Today: <span className="font-semibold text-gray-900">{maintenanceRequests.filter((item) => item.status === 'completed').length}</span></p>
+          <p>Departing Today: <span className="font-semibold text-gray-900">{stats.departuresToday}</span></p>
           <p>Housekeeping Rooms: <span className="font-semibold text-gray-900">{rooms.filter((room) => room.status === 'housekeeping').length}</span></p>
           <p>Occupancy Rate: <span className="font-semibold text-gray-900">{stats.totalRooms ? `${Math.round((stats.occupiedRooms / stats.totalRooms) * 100)}%` : '0%'}</span></p>
         </div>

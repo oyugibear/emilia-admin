@@ -11,6 +11,7 @@ export interface GuestFormData {
   fullName: string
   email: string
   phone: string
+  country: string
   dateOfBirth: string
   paymentStatus: string
   status: GuestStatus
@@ -29,6 +30,7 @@ const createDefaultGuest = (): GuestFormData => ({
   fullName: '',
   email: '',
   phone: '',
+  country: '',
   dateOfBirth: '',
   paymentStatus: '',
   status: 'upcoming',
@@ -52,6 +54,14 @@ export default function GuestModal({ isOpen, type, guest, onClose, onSave }: Gue
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (form.fullName.trim().split(/\s+/).length < 2) {
+      setSubmitError('Enter the guest’s first and last name.')
+      return
+    }
+    if (!/^\+[1-9]\d{7,14}$/.test(form.phone.replace(/[\s()-]/g, ''))) {
+      setSubmitError('Use international phone format, for example +254712345678.')
+      return
+    }
     setIsSaving(true)
     setSubmitError(null)
 
@@ -61,6 +71,7 @@ export default function GuestModal({ isOpen, type, guest, onClose, onSave }: Gue
         fullName: form.fullName.trim(),
         email: form.email.trim(),
         phone: form.phone.trim(),
+        country: form.country.trim(),
         paymentStatus: form.paymentStatus.trim(),
         notes: form.notes?.trim() || undefined
       })
@@ -90,28 +101,10 @@ export default function GuestModal({ isOpen, type, guest, onClose, onSave }: Gue
           )}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <input
-              required
-              value={form.fullName}
-              onChange={(e) => handleChange('fullName', e.target.value)}
-              placeholder="Full name"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-            <input
-              required
-              type="email"
-              value={form.email}
-              onChange={(e) => handleChange('email', e.target.value)}
-              placeholder="Email"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-            <input
-              required
-              value={form.phone}
-              onChange={(e) => handleChange('phone', e.target.value)}
-              placeholder="Phone number"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
+            <label className="text-xs font-medium text-gray-600">Full name *<input required value={form.fullName} onChange={(e) => handleChange('fullName', e.target.value)} placeholder="First and last name" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-normal" /></label>
+            <label className="text-xs font-medium text-gray-600">Email *<input required type="email" value={form.email} onChange={(e) => handleChange('email', e.target.value)} placeholder="guest@example.com" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-normal" /></label>
+            <label className="text-xs font-medium text-gray-600">Phone *<input required value={form.phone} onChange={(e) => handleChange('phone', e.target.value)} placeholder="+254712345678" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-normal" /><span className="mt-1 block text-[11px] text-gray-400">Include the country calling code.</span></label>
+            <label className="text-xs font-medium text-gray-600">Country<input value={form.country} onChange={(e) => handleChange('country', e.target.value)} placeholder="Kenya" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-normal" /></label>
 
             <div>
               <label className="mb-1 block text-xs text-gray-600">Date of Birth</label>

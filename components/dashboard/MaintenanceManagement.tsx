@@ -1,12 +1,16 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
-import { Table } from 'antd'
+import React, { useEffect, useMemo, useState } from 'react'
+import { Input, Table } from 'antd'
 import type { TableProps } from 'antd'
 import { maintenanceApi } from '@/lib/core/maintenance-api'
 import { roomApi } from '@/lib/core/room-api'
 import type { MaintenanceModalType, MaintenanceRequest, Room } from '@/types'
 import MaintenanceModal from '@/components/constants/modals/MaintenanceModal'
+import { apiClient } from '@/lib/core/api-client'
+import { API_ENDPOINTS } from '@/lib/core/api-endpoints'
+
+interface MaintenanceStaff { _id: string; first_name?: string; second_name?: string; role?: string; profile_status?: string }
 
 const getPriorityColor = (priority: string) => {
   switch (priority) {
@@ -34,6 +38,10 @@ export default function MaintenanceManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalType, setModalType] = useState<MaintenanceModalType>('add')
   const [selectedMaintenance, setSelectedMaintenance] = useState<MaintenanceRequest | null>(null)
+  const [staffOptions, setStaffOptions] = useState<Array<{ id: string; name: string }>>([])
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [priorityFilter, setPriorityFilter] = useState('')
 
   useEffect(() => {
     let isMounted = true
@@ -43,14 +51,16 @@ export default function MaintenanceManagement() {
       setError(null)
 
       try {
-        const [maintenanceData, roomsData] = await Promise.all([
+        const [maintenanceData, roomsData, staffResponse] = await Promise.all([
           maintenanceApi.getMaintenances(),
-          roomApi.getRooms()
+          roomApi.getRooms(),
+          apiClient.get<{ data: MaintenanceStaff[] }>(API_ENDPOINTS.staff.all)
         ])
 
         if (!isMounted) return
         setMaintenanceRequests(maintenanceData)
         setRooms(roomsData)
+        setStaffOptions((staffResponse.data || []).filter((member) => member.role === 'Maintenance' && member.profile_status !== 'Fired').map((member) => ({ id: member._id, name: [member.first_name, member.second_name].filter(Boolean).join(' ') || 'Unnamed technician' })))
       } catch (err) {
         if (!isMounted) return
         setError(err instanceof Error ? err.message : 'Failed to load maintenance requests')
@@ -94,6 +104,14 @@ export default function MaintenanceManagement() {
     const updated = await maintenanceApi.updateMaintenance(payload)
     setMaintenanceRequests((prev) => prev.map((row) => (row.apiId === updated.apiId ? updated : row)))
   }
+
+  const filteredRequests = useMemo(() => maintenanceRequests.filter((request) => {
+    const query = search.trim().toLowerCase()
+    if (query && !`${request.room} ${request.issue} ${request.assignedTo || ''}`.toLowerCase().includes(query)) return false
+    if (statusFilter && request.status !== statusFilter) return false
+    if (priorityFilter && request.priority !== priorityFilter) return false
+    return true
+  }), [maintenanceRequests, priorityFilter, search, statusFilter])
 
   const maintenanceColumns: TableProps<MaintenanceRequest>['columns'] = [
     // {
@@ -157,7 +175,6 @@ export default function MaintenanceManagement() {
           >
             Edit
           </button>
-          <button className="text-red-600 hover:text-red-900">Delete</button>
         </div>
       )
     }
@@ -170,7 +187,6 @@ export default function MaintenanceManagement() {
           <h2 className="text-2xl font-bold text-gray-900">Maintenance Management</h2>
           <p className="text-gray-600 mt-1">Manage and track all maintenance requests</p>
           {isLoading && <p className="text-sm text-gray-500 mt-1">Loading maintenance requests...</p>}
-          {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
         </div>
         <button
           onClick={openAddModal}
@@ -179,6 +195,10 @@ export default function MaintenanceManagement() {
           New Request
         </button>
       </div>
+
+      {error && <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3"><div><p className="text-sm font-semibold text-red-800">Maintenance data could not be loaded</p><p className="text-xs text-red-700">{error}</p></div><button onClick={() => window.location.reload()} className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700">Try again</button></div>}
+
+      {maintenanceRequests.some((request) => request.priority === 'high' && request.status !== 'completed') && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900"><strong>High-priority work needs attention.</strong> Assign a technician and update progress so rooms are not returned to service too early.</div>}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -215,14 +235,15 @@ export default function MaintenanceManagement() {
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <h3 className="text-lg font-semibold text-gray-900">All Maintenance Requests</h3>
-          <div className="flex gap-2">
-            <select className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <Input.Search value={search} onChange={(e) => setSearch(e.target.value)} allowClear placeholder="Search room, issue or technician" className="min-w-64 flex-1" />
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]">
               <option value="">All Status</option>
               <option value="pending">Pending</option>
               <option value="in-progress">In Progress</option>
               <option value="completed">Completed</option>
             </select>
-            <select className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]">
+            <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]">
               <option value="">All Priority</option>
               <option value="high">High</option>
               <option value="medium">Medium</option>
@@ -234,8 +255,9 @@ export default function MaintenanceManagement() {
         <Table<MaintenanceRequest>
           rowKey="apiId"
           columns={maintenanceColumns}
-          dataSource={maintenanceRequests}
-          pagination={false}
+          dataSource={filteredRequests}
+          pagination={{ pageSize: 10, showSizeChanger: false }}
+          locale={{ emptyText: maintenanceRequests.length ? 'No requests match these filters.' : 'No maintenance requests yet.' }}
           scroll={{ x: 900 }}
         />
       </div>
@@ -245,6 +267,7 @@ export default function MaintenanceManagement() {
         type={modalType}
         maintenance={selectedMaintenance}
         roomNumbers={rooms.map((room) => room.id)}
+        staffOptions={staffOptions}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveMaintenance}
       />

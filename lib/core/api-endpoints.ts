@@ -17,7 +17,13 @@ export const API_ENDPOINTS = {
   bookings: {
     all: '/bookings',
     add: '/bookings/add',
-    byId: (id: string) => `/bookings/${id}`
+    byId: (id: string) => `/bookings/${id}`,
+    quote: '/bookings/quote',
+    availableRooms: '/bookings/available-rooms',
+    blocks: '/bookings/availability-blocks'
+  },
+  payments: {
+    record: (bookingId: string) => `/payments/${bookingId}/record`
   },
   maintenance: {
     all: '/maintenance',

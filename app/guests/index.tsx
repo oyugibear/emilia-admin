@@ -24,6 +24,7 @@ interface GuestApiRecord {
   second_name?: string
   email?: string
   phone_number?: string
+  country?: string
   date_of_birth?: string
   payment_status?: string
   previous_bookings?: GuestApiBooking[]
@@ -102,6 +103,7 @@ const mapGuest = (item: GuestApiRecord): Guest => {
     fullName,
     email: item.email || '',
     phone: item.phone_number || '',
+    country: item.country || '',
     dateOfBirth: item.date_of_birth || '',
     paymentStatus: item.payment_status || '',
     status: normalizeStatus(item.status),
@@ -125,6 +127,7 @@ const buildGuestPayload = (guest: GuestFormData) => {
     second_name,
     email: guest.email.trim(),
     phone_number: guest.phone.trim(),
+    country: guest.country.trim(),
     date_of_birth: guest.dateOfBirth,
     payment_status: paymentStatus || undefined,
     status: guest.status,
@@ -317,6 +320,7 @@ export default function Guests() {
             <Descriptions.Item label="Full Name">{selectedGuest.fullName}</Descriptions.Item>
             <Descriptions.Item label="Email">{selectedGuest.email || FALLBACK_VALUE}</Descriptions.Item>
             <Descriptions.Item label="Phone">{selectedGuest.phone || FALLBACK_VALUE}</Descriptions.Item>
+            <Descriptions.Item label="Country">{selectedGuest.country || FALLBACK_VALUE}</Descriptions.Item>
             <Descriptions.Item label="Date of Birth">{selectedGuest.dateOfBirth || FALLBACK_VALUE}</Descriptions.Item>
             <Descriptions.Item label="Previous Bookings">{selectedGuest.previousBookingsCount}</Descriptions.Item>
             <Descriptions.Item label="Last Check In">{selectedGuest.lastCheckInDate}</Descriptions.Item>

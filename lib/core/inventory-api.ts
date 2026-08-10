@@ -22,6 +22,7 @@ function mapInventoryFromApi(item: InventoryApiRecord): InventoryItem {
   return {
     apiId: item._id,
     roomId: typeof item.room === 'object' ? item.room?._id : undefined,
+    roomLabel: typeof item.room === 'object' ? item.room?.room_number : undefined,
     id: item._id.slice(-6).toUpperCase(),
     item: item.item_name || 'Inventory Item',
     stock,

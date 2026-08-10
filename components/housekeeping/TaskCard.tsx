@@ -15,6 +15,7 @@ export interface HousekeepingTask {
   assignedTo: string
   priority: 'low' | 'medium' | 'high' | 'urgent'
   scheduledTime: string
+  date?: string
   estimatedDuration: number
   guestCheckOut?: string
   guestCheckIn?: string
@@ -134,6 +135,19 @@ export default function TaskCard({ task, onEdit, onDelete, onStatusUpdate }: Tas
           ID: {task.id}
         </div>
         <div className="flex gap-2">
+          {onStatusUpdate && (
+            <select
+              aria-label={`Update status for room ${task.roomNumber}`}
+              value={task.status}
+              onChange={(event) => onStatusUpdate(task.apiId || task.id, event.target.value as HousekeepingTask['status'])}
+              className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1D4E56]"
+            >
+              <option value="pending">Pending</option>
+              <option value="in_progress">In progress</option>
+              <option value="completed">Completed</option>
+              <option value="overdue">Overdue</option>
+            </select>
+          )}
           {onEdit && (
             <button 
               onClick={() => onEdit(task.apiId || task.id)}

@@ -1,20 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function Home() {
   const router = useRouter()
   const { isAuthenticated, isLoading } = useAuth()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   const handleContinue = () => {
-    if (!mounted || isLoading) return
+    if (isLoading) return
     router.replace(isAuthenticated ? '/dashboard' : '/auth')
   }
 
@@ -30,7 +24,7 @@ export default function Home() {
         </p>
         <button
           onClick={handleContinue}
-          disabled={!mounted || isLoading}
+          disabled={isLoading}
           className="bg-[#1D4E56] text-white px-5 py-2.5 rounded-md hover:bg-[#2a6670] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
           Continue

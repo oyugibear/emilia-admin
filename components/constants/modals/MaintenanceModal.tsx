@@ -17,7 +17,7 @@ const defaultMaintenance: MaintenanceRequest = {
   notes: ''
 }
 
-export default function MaintenanceModal({ isOpen, type, maintenance, roomNumbers, onClose, onSave }: MaintenanceModalProps) {
+export default function MaintenanceModal({ isOpen, type, maintenance, roomNumbers, staffOptions = [], onClose, onSave }: MaintenanceModalProps) {
   const [form, setForm] = useState<MaintenanceRequest>(defaultMaintenance)
   const [isSaving, setIsSaving] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -153,17 +153,23 @@ export default function MaintenanceModal({ isOpen, type, maintenance, roomNumber
             </div>
 
             <div>
-              <label className="mb-1 block text-sm text-gray-700">Assigned To (optional)</label>
-              <input
-                value={form.assignedTo ?? ''}
-                onChange={(e) => handleChange('assignedTo', e.target.value || null)}
+              <label className="mb-1 block text-sm text-gray-700">Assigned technician</label>
+              <select
+                value={form.assignedToId ?? ''}
+                onChange={(e) => {
+                  const selected = staffOptions.find((member) => member.id === e.target.value)
+                  setForm((prev) => ({ ...prev, assignedToId: selected?.id, assignedTo: selected?.name || null }))
+                }}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D4E56]"
-                placeholder="Technician name"
-              />
+              >
+                <option value="">Unassigned</option>
+                {staffOptions.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+              </select>
+              {!staffOptions.length && <p className="mt-1 text-xs text-amber-700">Add an active Maintenance staff member before assigning this request.</p>}
             </div>
 
             <div>
-              <label className="mb-1 block text-sm text-gray-700">Duration (optional)</label>
+              <label className="mb-1 block text-sm text-gray-700">Estimated duration</label>
               <input
                 value={form.duration ?? ''}
                 onChange={(e) => handleChange('duration', e.target.value)}

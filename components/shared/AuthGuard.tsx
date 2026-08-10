@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -21,27 +21,15 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   const { isAuthenticated, isLoading } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
-  const [mounted, setMounted] = useState(false)
 
   const normalizedPath = (pathname ?? '').toLowerCase()
   const isPublicRoute = normalizedPath === '/' || normalizedPath.startsWith('/auth')
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!mounted) return
     if (!isLoading && !isAuthenticated && !isPublicRoute) {
       router.replace('/auth')
     }
-  }, [mounted, isAuthenticated, isLoading, isPublicRoute, router])
-
-  // Before hydration: always render a deterministic fallback.
-  // This avoids pathname-dependent server/client differences that can trigger hydration errors.
-  if (!mounted) {
-    return <Spinner />
-  }
+  }, [isAuthenticated, isLoading, isPublicRoute, router])
 
   if (isLoading && !isPublicRoute) {
     return <Spinner />

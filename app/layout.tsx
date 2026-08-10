@@ -3,7 +3,6 @@ import "./globals.css";
 import { Montserrat, } from "next/font/google";
 import SideMenu from "../components/navigation/SideMenu";
 import Providers from "./providers";
-import ClientMountGate from "../components/shared/ClientMountGate";
 
 const montserrat = Montserrat({ subsets: ["latin"] });
 
@@ -21,17 +20,15 @@ export default function RootLayout({
     <html lang="en" >
       <body className={montserrat.className} >
         <Providers>
-          <ClientMountGate>
-            <div className="flex min-h-screen">
-              {/* Sidebar - shows on large screens, hidden on mobile */}
-              <SideMenu />
-              
-              {/* Main content area */}
-              <div className="flex-1 flex flex-col">
-                {children}
-              </div>
+          <div className="flex min-h-screen">
+            {/* Sidebar - shows on large screens, hidden on mobile */}
+            <SideMenu />
+
+            {/* Main content area */}
+            <div className="flex-1 flex flex-col">
+              {children}
             </div>
-          </ClientMountGate>
+          </div>
         </Providers>
       </body>
     </html>
